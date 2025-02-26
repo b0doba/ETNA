@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite" // Egyelőre SQLite, de hosszú távon lehet érdemes Postgres-re váltani
-  url      = "file:./dev.db"
+  url      = "file:C:/Users/bobal/Desktop/ETNA/backend/prisma/dev.db"
 }
 
 model Building {

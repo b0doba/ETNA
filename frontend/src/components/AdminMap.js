@@ -53,8 +53,9 @@ const AdminMap = () => {
     const initMap = async () => {
       try {
         await loadGoogleMapsScript();
-        const [buildings, rooms] = await Promise.all([
+        const [buildings,floors, rooms] = await Promise.all([
           fetchGeoJSON(`${API_BASE_URL}/buildings`),
+          fetchGeoJSON(`${API_BASE_URL}/floors`),
           fetchGeoJSON(`${API_BASE_URL}/rooms`),
         ]);
 
@@ -95,7 +96,7 @@ const AdminMap = () => {
         drawingManager.current.setMap(map.current);
 
         // 🔹 Létező épületek és szobák betöltése és szerkeszthetővé tétele
-        const addGeoJSONToMap = (geoJson, color) => {
+        const addGeoJSONToMap = (geoJson, color, type) => {
           geoJson.features.forEach((feature) => {
             const polygon = new window.google.maps.Polygon({
               paths: feature.geometry.coordinates[0].map(([lng, lat]) => ({ lat, lng })),
@@ -110,14 +111,20 @@ const AdminMap = () => {
 
             // 🔹 Kattintáskor az adott objektumot kiválasztjuk
             polygon.addListener("click", () => {
-              selectedFeature.current = { id: feature.properties.id, polygon };
+              selectedFeature.current = {
+                id: feature.properties.id,
+                polygon,
+                type
+              };
               console.log("📍 Kiválasztott objektum:", selectedFeature.current);
             });
           });
         };
 
-        addGeoJSONToMap(buildings, "blue");
-        addGeoJSONToMap(rooms, "red");
+        addGeoJSONToMap(buildings, "blue", "building");
+        addGeoJSONToMap(floors, "green", "floor");
+        addGeoJSONToMap(rooms, "red", "room");
+
 
         setLoading(false);
       } catch (err) {
@@ -159,7 +166,21 @@ const AdminMap = () => {
 
     console.log("📩 Mentésre kerül:", updatedFeature);
 
-    const endpoint = `${API_BASE_URL}/updateBuildings`;
+    let endpoint;
+  switch (selectedFeature.current.type) {
+    case "building":
+      endpoint = `${API_BASE_URL}/updateBuildings`;
+      break;
+    case "floor":
+      endpoint = `${API_BASE_URL}/updateFloors`;
+      break;
+    case "room":
+      endpoint = `${API_BASE_URL}/updateRooms`;
+      break;
+    default:
+      console.error("❌ Ismeretlen típusú objektum!", selectedFeature.current);
+      return;
+  }
 
     await fetch(endpoint, {
       method: "POST",

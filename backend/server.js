@@ -61,6 +61,7 @@ app.get("/api/rooms", async (req, res) => {
           id: room.id,
           name: room.name,
           floor: room.floor.number,
+          type: room.type,
           building: room.floor.building.name,
           category: "room",
         },
@@ -71,6 +72,43 @@ app.get("/api/rooms", async (req, res) => {
   } catch (error) {
     console.error("🚨 Hiba történt:", error);
     res.status(500).json({ error: "Hiba a termek lekérdezésekor" });
+  }
+});
+
+// API a szintek (floors) lekérésére
+app.get("/api/floors", async (req, res) => {
+  try {
+    const floors = await prisma.floor.findMany({
+      include: {
+        building: true,
+        rooms: true,
+      },
+    });
+
+    const geoJsonData = {
+      type: "FeatureCollection",
+      features: floors.map((floor) => ({
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: floor.coordinates
+            ? [JSON.parse(floor.coordinates)]
+            : [],
+        },
+        properties: {
+          id: floor.id,
+          number: floor.number,
+          height: floor.height,
+          building: floor.building.name,
+          category: "floor",
+        },
+      })),
+    };
+
+    res.json(geoJsonData);
+  } catch (error) {
+    console.error("🚨 Hiba történt:", error);
+    res.status(500).json({ error: "Nem sikerült lekérni a szinteket." });
   }
 });
 
@@ -144,10 +182,12 @@ app.post('/api/updateRooms', async (req, res) => {
         : room.geometry.coordinates;
 
       const roomName = room.properties.name || existingRoom.name; // Ha nincs name, akkor használjuk a meglévőt
+      const roomType = room.properties.type || existingRoom.type || "Unknown";
 
       console.log("📌 Mentendő adatok:", {
         id: room.properties.id,
         name: roomName,
+        type: roomType,
         coordinates: cleanedCoordinates,
       });
 
@@ -157,7 +197,9 @@ app.post('/api/updateRooms', async (req, res) => {
         create: {
           id: room.properties.id,
           name: roomName,
+          type: roomType,
           coordinates: JSON.stringify(cleanedCoordinates),
+          floorId: existingRoom.floorId
         },
       });
     }
@@ -169,6 +211,52 @@ app.post('/api/updateRooms', async (req, res) => {
   }
 });
 
+app.post('/api/updateFloors', async (req, res) => {
+  try {
+    const updatedFloors = req.body;
+    console.log("🔄 Frissített szintek:", JSON.stringify(updatedFloors, null, 2));
+
+    for (const floor of updatedFloors.features) {
+      console.log(`🛠 Frissítés alatt: Floor ID = ${floor.properties.id}`);
+
+      const existingFloor = await prisma.floor.findUnique({
+        where: { id: floor.properties.id },
+      });
+
+      if (!existingFloor) {
+        console.warn(`⚠️ Kihagyott frissítés: Floor ID=${floor.properties.id} nem létezik.`);
+        continue;
+      }
+
+      const cleanedCoordinates =
+        floor.geometry.coordinates.length === 1
+          ? floor.geometry.coordinates[0]
+          : floor.geometry.coordinates;
+
+      console.log("📌 Mentendő adatok:", {
+        id: floor.properties.id,
+        coordinates: cleanedCoordinates,
+      });
+
+      await prisma.floor.upsert({
+        where: { id: floor.properties.id },
+        update: { coordinates: JSON.stringify(cleanedCoordinates) },
+        create: {
+          id: floor.properties.id,
+          number: existingFloor.number,
+          height: existingFloor.height,
+          buildingId: existingFloor.buildingId,
+          coordinates: JSON.stringify(cleanedCoordinates),
+        },
+      });
+    }
+
+    res.json({ success: true, message: "Szintek frissítve!" });
+  } catch (error) {
+    console.error("🚨 Hiba a szintek frissítésekor:", error);
+    res.status(500).json({ error: "Nem sikerült frissíteni a szinteket." });
+  }
+});
 
 // **Szerver indítása**
 const PORT = 5000;

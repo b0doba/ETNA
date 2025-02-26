@@ -57,9 +57,10 @@ const MapComponent = () => {
     const initMap = async () => {
       try {
         await loadGoogleMapsScript();
-        const [buildings, rooms] = await Promise.all([
+        const [buildings,floors, rooms] = await Promise.all([
           fetchGeoJSON("http://localhost:5000/api/buildings"),
           fetchGeoJSON("http://localhost:5000/api/rooms"),
+          fetchGeoJSON("http://localhost:5000/api/floors")
         ]);
 
         if (!window.google || !window.google.maps) {
@@ -87,17 +88,61 @@ const MapComponent = () => {
           ],
         });
 
-        const addGeoJSONToMap = (geoJson, color) => {
+        const addGeoJSONToMap = (geoJson, type) => {
           map.current.data.addGeoJson(geoJson);
-          map.current.data.setStyle({
-            fillColor: color,
-            strokeColor: "black",
-            strokeWeight: 1,
+        
+          map.current.data.setStyle((feature) => {
+            const category = feature.getProperty("category"); // 🔹 Ellenőrizzük a "category" mezőt
+            let fillColor = "gray"; // 🔹 Alapértelmezett szín
+        
+            if (category === "building") fillColor = "blue";
+            else if (category === "floor") fillColor = "green";
+            else if (category === "room") fillColor = "red";
+        
+            return {
+              fillColor: fillColor,
+              strokeColor: "black",
+              strokeWeight: 1,
+            };
           });
         };
 
-        addGeoJSONToMap(buildings, "blue");
-        addGeoJSONToMap(rooms, "red");
+        addGeoJSONToMap(buildings, "building");
+        addGeoJSONToMap(floors, "floor");
+        addGeoJSONToMap(rooms,"room");
+
+        // 🔹 Egyedi InfoWindow létrehozása
+      const infoWindow = new window.google.maps.InfoWindow();
+
+      map.current.data.addListener("mouseover", (event) => {
+        const category = event.feature.getProperty("category") || "Ismeretlen";
+        let displayText = event.feature.getProperty("name") || "Nincs név"; // Alapértelmezett
+
+        // 🔹 Ha az objektum egy "floor", akkor a "number" értéket használjuk
+        if (category === "floor") {
+          displayText = `Emelet: ${event.feature.getProperty("number")}`;
+        }
+
+        const content = `
+          <div class="custom-info-window">
+            <div class="info-title">${displayText}</div>
+            <div class="info-category">${category}</div>
+          </div>
+        `;
+
+        infoWindow.setContent(content);
+        infoWindow.setPosition(event.latLng);
+        infoWindow.open(map.current);
+      });
+      // 🔹 Az X gomb eltüntetése (kis késleltetéssel, hogy biztos működjön)
+      setTimeout(() => {
+        document.querySelector(".gm-ui-hover-effect")?.remove();
+      }, 100);
+
+      map.current.data.addListener("mouseout", () => {
+        infoWindow.close();
+      });
+        
 
         console.log("Térkép sikeresen inicializálva!");
         setLoading(false);

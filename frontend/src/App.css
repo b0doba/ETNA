@@ -177,3 +177,30 @@ html, body {
   width: 244px;
 }
 
+.custom-info-window {
+  font-family: Arial, sans-serif;
+  background-color: white;
+  border-radius: 8px;
+  padding: 10px;
+  min-width: 100px;
+  text-align: center;
+}
+
+.info-title {
+  font-size: 12px;
+  font-weight: bold;
+  color: #333;
+}
+
+.info-category {
+  font-size: 9px;
+  color: #666;
+}
+
+.gm-style-iw-c {
+  padding: 0 !important;
+}
+
+.gm-ui-hover-effect {
+  display: none !important; /* 🔹 Elrejti az "x" gombot */
+}
