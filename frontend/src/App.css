@@ -1,0 +1,179 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Megakadályozza a görgetést */
+  width: 100%;
+  height: 100%;
+}
+
+.search-panel {
+  position: absolute;
+  top: 60px;
+  left: 10px;
+  background: white;
+  padding: 35px; 
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  gap: 10px; /* Jobb elválasztás az elemek között */
+  z-index: 1000;
+  width: 350px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%; /* Teljes szélesség */
+}
+
+.search-bar input {
+  flex-grow: 1;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100%; /* Teljes szélesség a konténerben */
+}
+
+.search-btn,
+.route-btn {
+  background: #6b727b;
+  color: white;
+  border: none;
+  padding: 12px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-btn img,
+.route-btn img {
+  width: 18px;
+  height: 18px;
+  filter: invert(100%);
+}
+
+.search-btn:hover,
+.route-btn:hover {
+  background: #2d2f33;
+}
+
+.route-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%; /* Teljes szélesség */
+}
+
+.route-inputs input {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 90%; /* Teljes szélesség */
+  height: 30px;
+}
+
+.route-inputs .route-btn {
+  margin-top: 5px;
+  background: #6b727b;
+  position: center;
+  color: white;
+  width: 95%;
+  font-size: 14px;
+}
+
+.route-inputs .route-btn:hover {
+  background: #2d2f33;
+}
+
+.description {
+  font-size: 16px;
+  color: gray;
+  text-align: left; /* 🔹 Szöveg balra igazítása */
+  width: 100%;
+  text-align: center;
+}
+
+/* Kategória gombok stílusa */
+.category-buttons {
+  position: absolute;
+  top: 10px;
+  left: 350px;
+  display: flex;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.category-btn {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  color: #666;
+  border: none;
+  padding: 10px 18px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.category-btn:hover {
+  background: #f0f0f0;
+}
+
+/* Keresőpanel módosítás */
+.search-panel {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: white;
+  padding: 40px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  gap: 10px;
+  z-index: 1000;
+  width: 244px;
+}
+

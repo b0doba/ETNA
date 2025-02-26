@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // Egyelőre SQLite, de hosszú távon lehet érdemes Postgres-re váltani
+  url      = "file:./dev.db"
+}
+
+model Building {
+  id          Int      @id @default(autoincrement())
+  name        String
+  coordinates Json?     // Az épület alakját (pl. poligon koordináták) tároljuk
+  floors      Floor[]
+}
+
+model Floor {
+  id          Int      @id @default(autoincrement())
+  buildingId  Int
+  number      Int
+  height      Float
+  coordinates Json?
+  rooms       Room[]
+  building    Building @relation(fields: [buildingId], references: [id])
+}
+
+model Room {
+  id          Int      @id @default(autoincrement())
+  floorId     Int
+  name        String
+  type        String
+  coordinates Json?    // A szoba alakzatának tárolása opcionálisan
+  floor       Floor    @relation(fields: [floorId], references: [id])
+}
