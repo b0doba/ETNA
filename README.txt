@@ -1,8 +1,8 @@
-# Projekt
+#Projekt
 
 Ez a projekt egy interaktív, 2D kampusztérkép, amely segíti a felhasználókat a kampuszon található épületek, szintek és termek gyors megtalálásában.
 
-## Funkciók
+##Funkciók
 
  - Interaktív térkép, amely Google Maps segítségével jeleníti meg a campusz épületeit.
 
@@ -16,7 +16,7 @@ Ez a projekt egy interaktív, 2D kampusztérkép, amely segíti a felhasználók
 
  - GPS-alapú navigációs rendszer előkészítése, amely figyelembe veszi a felhasználó aktuális magasságát (emelet).
 
-## Eszközök
+##Eszközök
 
  - Frontend: React, Google Maps API
 
@@ -26,7 +26,7 @@ Ez a projekt egy interaktív, 2D kampusztérkép, amely segíti a felhasználók
 
  - Egyéb eszközök: Postman
 
-## Fejlesztési tervek
+##Fejlesztési tervek
 
  - Használd a bal felső sarokban található keresőmezőt épületek vagy termek megtalálására.
 
@@ -40,8 +40,8 @@ Ez a projekt egy interaktív, 2D kampusztérkép, amely segíti a felhasználók
 
  - Felhasználói élmény fokozása további interaktív elemekkel.
 
-## Kapcsolat
+##Kapcsolat
 
- - Email: email@example.com
+ - Email: bodo.balint@ga.sze.hu
 
- - GitHub: felhasznalonev
+ - GitHub: b0doba
