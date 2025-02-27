@@ -50,6 +50,10 @@ const MapComponent = () => {
   const navigate = useNavigate();
   const mapContainer = useRef(null);
   const map = useRef(null);
+  const [selectedBuilding, setSelectedBuilding] = useState(null);
+  const [isBuildingView, setIsBuildingView] = useState(false);
+  const [currentFloor, setCurrentFloor] = useState(null);
+  const [buildingFloors, setBuildingFloors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -88,11 +92,15 @@ const MapComponent = () => {
           ],
         });
 
+        
+
         const addGeoJSONToMap = (geoJson, type) => {
           map.current.data.addGeoJson(geoJson);
         
           map.current.data.setStyle((feature) => {
             const category = feature.getProperty("category"); // 🔹 Ellenőrizzük a "category" mezőt
+            const buildingName = feature.getProperty("building");
+            const floorNumber = feature.getProperty("number");
             let fillColor = "gray"; // 🔹 Alapértelmezett szín
         
             if (category === "building") fillColor = "blue";
@@ -103,45 +111,81 @@ const MapComponent = () => {
               fillColor: fillColor,
               strokeColor: "black",
               strokeWeight: 1,
+              visible: isBuildingView
+              ? (category === "floor" && buildingName === selectedBuilding && floorNumber === currentFloor) ||
+                (category === "room" && buildingName === selectedBuilding && feature.getProperty("floor") === currentFloor)
+              : category === "building",
             };
           });
         };
 
         addGeoJSONToMap(buildings, "building");
-        addGeoJSONToMap(floors, "floor");
         addGeoJSONToMap(rooms,"room");
+        addGeoJSONToMap(floors, "floor");
 
-        // 🔹 Egyedi InfoWindow létrehozása
-      const infoWindow = new window.google.maps.InfoWindow();
+        // MOUSEOVER
 
-      map.current.data.addListener("mouseover", (event) => {
-        const category = event.feature.getProperty("category") || "Ismeretlen";
-        let displayText = event.feature.getProperty("name") || "Nincs név"; // Alapértelmezett
+        const infoWindow = new window.google.maps.InfoWindow();
 
-        // 🔹 Ha az objektum egy "floor", akkor a "number" értéket használjuk
-        if (category === "floor") {
-          displayText = `Emelet: ${event.feature.getProperty("number")}`;
-        }
+        map.current.data.addListener("mouseover", (event) => {
+          const category = event.feature.getProperty("category") || "Ismeretlen";
+          let displayText = event.feature.getProperty("name") || "Nincs név"; // Alapértelmezett
 
-        const content = `
-          <div class="custom-info-window">
-            <div class="info-title">${displayText}</div>
-            <div class="info-category">${category}</div>
-          </div>
-        `;
+          // 🔹 Ha az objektum egy "floor", akkor a "number" értéket használjuk
+          if (category === "floor") {
+            displayText = `Emelet: ${event.feature.getProperty("number")}`;
+          }
 
-        infoWindow.setContent(content);
-        infoWindow.setPosition(event.latLng);
-        infoWindow.open(map.current);
-      });
-      // 🔹 Az X gomb eltüntetése (kis késleltetéssel, hogy biztos működjön)
-      setTimeout(() => {
-        document.querySelector(".gm-ui-hover-effect")?.remove();
-      }, 100);
+          const content = `
+            <div class="custom-info-window">
+              <div class="info-title">${displayText}</div>
+              <div class="info-category">${category}</div>
+            </div>
+          `;
 
-      map.current.data.addListener("mouseout", () => {
-        infoWindow.close();
-      });
+          infoWindow.setContent(content);
+          infoWindow.setPosition(event.latLng);
+          infoWindow.open(map.current);
+        });
+        // 🔹 Az X gomb eltüntetése (kis késleltetéssel, hogy biztos működjön)
+        setTimeout(() => {
+          document.querySelector(".gm-ui-hover-effect")?.remove();
+        }, 100);
+
+        map.current.data.addListener("mouseout", () => {
+          infoWindow.close();
+        });
+
+        // Building nézet és kilépés
+        
+        map.current.data.addListener("click", (event) => {
+          const category = event.feature.getProperty("category");
+        
+          if (category === "building") {
+            const buildingName = event.feature.getProperty("name");
+            setSelectedBuilding(buildingName);
+            setIsBuildingView(true);
+        
+            // Kiválasztott épület szintjeinek lekérése
+            const floorsInBuilding = floors.features
+              .filter((floor) => floor.properties.building === buildingName)
+              .sort((a, b) => a.properties.number - b.properties.number); // Szintek sorrendbe állítása
+        
+            setBuildingFloors(floorsInBuilding);
+            setCurrentFloor(0); // Alapértelmezett szint mindig 0
+          }
+        });
+        
+
+        map.current.addListener("click", (event) => {
+          const feature = map.current.data.getFeatureById(event.featureId);
+        
+          if (!feature || feature.getProperty("category") !== "building") {
+            setSelectedBuilding(null);
+            setIsBuildingView(false);
+            setCurrentFloor(null);
+          }
+        });
         
 
         console.log("Térkép sikeresen inicializálva!");
@@ -157,7 +201,7 @@ const MapComponent = () => {
     if (window.location.pathname === "/") {
       navigate("/map", { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, isBuildingView,currentFloor,selectedBuilding]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
@@ -165,6 +209,22 @@ const MapComponent = () => {
       {loading && <p>Betöltés...</p>}
       {error && <p style={{ color: "red" }}>Hiba történt: {error}</p>}
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
+      
+      {isBuildingView && buildingFloors.length > 0 && (
+      <div className="slider-container">
+        <p className="slider-label">Szint: {currentFloor}</p>
+        <input
+          type="range"
+          min={0}
+          max={buildingFloors.length - 2}
+          value={currentFloor}
+          onChange={(e) => setCurrentFloor(Number(e.target.value))}
+          className="slider"
+          orient="vertical" /* Ez segít egyes böngészőkben */
+        />
+      </div>
+    )}
+
     </div>
   );
 };

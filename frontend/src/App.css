@@ -204,3 +204,64 @@ html, body {
 .gm-ui-hover-effect {
   display: none !important; /* 🔹 Elrejti az "x" gombot */
 }
+
+/* A csúszka konténere */
+.slider-container {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000; /* A térkép felett tartja */
+  width: 50px; /* Keskenyebb, mert vertikális */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* A csúszka címke (szint száma) */
+.slider-label {
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+/* Maga a csúszka (vertikális beállítások) */
+.slider {
+  appearance: none;
+  width: 8px;
+  height: 150px; /* Magasság beállítása */
+  background: #ddd;
+  outline: none;
+  opacity: 0.9;
+  border-radius: 4px;
+  transition: opacity 0.2s;
+  writing-mode: vertical-lr; /* Ez teszi vertikálissá a csúszkát */
+  direction: rtl; /* Megfordítja a csúszka működését */
+}
+
+/* Ha a csúszkát használják */
+.slider:hover {
+  opacity: 1;
+}
+
+/* A csúszka fogantyúja */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #666;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: #333;
+}
+
+
+
