@@ -1,20 +1,19 @@
 import React, { useState } from "react";
 import searchIcon from "../assets/icons/arrow.svg";
 import routeIcon from "../assets/icons/pitch.svg";
-import "../App.css"; // Ha van saját CSS fájlod
+import "../App.css";
 
-const SearchPanel = ({ onSearch, onRouteSearch }) => {
+const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
   const [showRouteInputs, setShowRouteInputs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [startPoint, setStartPoint] = useState("");
   const [destination, setDestination] = useState("");
 
+  
   const handleSearch = () => {
-    if (searchQuery.trim() !== "") {
-      onSearch(searchQuery);
-    }
+    onSearch(searchQuery);
   };
-
+  
   // Keresési funkció az útvonalhoz
   const handleRouteSearch = () => {
     if (startPoint && destination) {
@@ -25,13 +24,16 @@ const SearchPanel = ({ onSearch, onRouteSearch }) => {
     }
   };
 
+
+
   return (
     <>
     {/* Kategória gombok az oldal tetején */}
     <div className="category-buttons">
-        <button className="category-btn">Kollégiumok</button>
-        <button className="category-btn">Sportcsarnokok</button>
-        <button className="category-btn">Parkolók</button>
+        <button className="category-btn" onClick={() => onGroupSelect("Kollégiumok")}>Kollégiumok</button>
+        <button className="category-btn" onClick={() => onGroupSelect("Sportcsarnokok")}>Sportcsarnokok</button>
+        <button className="category-btn" onClick={() => onGroupSelect("Parkolók")}>Parkolók</button>
+        <button className="category-btn">Rendezvények</button>
       </div>
       {/* Keresőpanel */}
     <div className="search-panel">

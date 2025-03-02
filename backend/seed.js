@@ -4,7 +4,9 @@ const prisma = new PrismaClient();
 async function main() {
   const building = await prisma.building.create({
     data: {
-      name: "Főépület",
+      name: "Kollégium 1",
+      shortName: "K1",
+      group:"Kollégiumok",
       coordinates: JSON.stringify([
         [17.6265, 47.6925],
         [17.6275, 47.6925],
@@ -12,77 +14,83 @@ async function main() {
         [17.6265, 47.6935],
         [17.6265, 47.6925]
       ]),
-      floors: {
-        create: [
-          {
-            number: 0,
-            height: 0,
-            coordinates: JSON.stringify([
-              [17.6265, 47.6925],
-              [17.6275, 47.6925],
-              [17.6275, 47.6935],
-              [17.6265, 47.6935],
-              [17.6265, 47.6925]
-            ]),
-            rooms: {
-              create: [
-                {
-                  name: "Aula",
-                  type: "Terem",
-                  coordinates: JSON.stringify([
-                    [17.6267, 47.6927],
-                    [17.6273, 47.6927],
-                    [17.6273, 47.6931],
-                    [17.6267, 47.6931],
-                    [17.6267, 47.6927]
-                  ])
-                },
-                {
-                  name: "101-es terem",
-                  type: "Terem",
-                  coordinates: JSON.stringify([
-                    [17.6268, 47.6928],
-                    [17.6272, 47.6928],
-                    [17.6272, 47.6930],
-                    [17.6268, 47.6930],
-                    [17.6268, 47.6928]
-                  ])
-                }
-              ]
-            }
-          },
-          {
-            number: 1,
-            height: 3.5,
-            coordinates: JSON.stringify([
-              [17.6265, 47.6925],
-              [17.6275, 47.6925],
-              [17.6275, 47.6935],
-              [17.6265, 47.6935],
-              [17.6265, 47.6925]
-            ]),
-            rooms: {
-              create: [
-                {
-                  name: "Előadóterem 101",
-                  type: "Terem",
-                  coordinates: JSON.stringify([
-                    [17.6269, 47.6929],
-                    [17.6271, 47.6929],
-                    [17.6271, 47.6931],
-                    [17.6269, 47.6931],
-                    [17.6269, 47.6929]
-                  ])
-                }
-              ]
-            }
-          }
-        ]
-      }
-    }
+    },
+  });
+  await prisma.building.create({
+    data: {
+      name: "Kollégium 2",
+      shortName: "K2",
+      group: "Kollégiumok",
+      coordinates: JSON.stringify([
+        [17.6280, 47.6920],
+        [17.6290, 47.6920],
+        [17.6290, 47.6930],
+        [17.6280, 47.6930],
+        [17.6280, 47.6920]
+      ]),
+    },
   });
 
-  console.log("✅ Épület, szintek és szobák sikeresen feltöltve:", building);
+  // Sportcsarnokok
+  await prisma.building.create({
+    data: {
+      name: "Sportcsarnok 1",
+      shortName: "S1",
+      group: "Sportcsarnokok",
+      coordinates: JSON.stringify([
+        [17.6300, 47.6915],
+        [17.6310, 47.6915],
+        [17.6310, 47.6925],
+        [17.6300, 47.6925],
+        [17.6300, 47.6915]
+      ]),
+    },
+  });
+  await prisma.building.create({
+    data: {
+      name: "Sportcsarnok 2",
+      shortName: "S2",
+      group: "Sportcsarnokok",
+      coordinates: JSON.stringify([
+        [17.6300, 47.6915],
+        [17.6310, 47.6915],
+        [17.6310, 47.6925],
+        [17.6300, 47.6925],
+        [17.6300, 47.6915]
+      ]),
+    },
+  });
+  // Parkolók
+  await prisma.building.create({
+    data: {
+      name: "Parkoló 1",
+      shortName: "P1",
+      group: "Parkolók",
+      coordinates: JSON.stringify([
+        [17.6320, 47.6930],
+        [17.6330, 47.6930],
+        [17.6330, 47.6940],
+        [17.6320, 47.6940],
+        [17.6320, 47.6930]
+      ]),
+    },
+  });
+  await prisma.building.create({
+    data: {
+      name: "Parkoló 2",
+      shortName: "P2",
+      group: "Parkolók",
+      coordinates: JSON.stringify([
+        [17.6320, 47.6930],
+        [17.6330, 47.6930],
+        [17.6330, 47.6940],
+        [17.6320, 47.6940],
+        [17.6320, 47.6930]
+      ]),
+    },
+  });
+
+  console.log("✅ Épület sikeresen feltöltve:", building);
 }
 
 main()

@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// **1️⃣ API az épületek lekérésére**
+// API az épületek lekérésére
 app.get("/api/buildings", async (req, res) => {
   try {
     const buildings = await prisma.building.findMany({
@@ -22,12 +22,14 @@ app.get("/api/buildings", async (req, res) => {
         geometry: {
           type: "Polygon",
           coordinates: building.coordinates
-          ? [JSON.parse(building.coordinates)] // 🔹 JSON-string konvertálása tömbbé
+          ? [JSON.parse(building.coordinates)] // JSON-string konvertálása tömbbé
           : []
         },
         properties: {
           id: building.id,
           name: building.name,
+          shortName: building.shortName ?? null,
+          group: building.group ?? null, 
           category: "building",
         },
       })),
@@ -40,7 +42,7 @@ app.get("/api/buildings", async (req, res) => {
   }
 });
 
-// **2️⃣ API a termek lekérésére**
+// **API a termek lekérésére**
 app.get("/api/rooms", async (req, res) => {
   try {
     const rooms = await prisma.room.findMany({
@@ -54,7 +56,7 @@ app.get("/api/rooms", async (req, res) => {
         geometry: {
           type: "Polygon",
           coordinates: room.coordinates
-          ? [JSON.parse(room.coordinates)] // 🔹 JSON-string konvertálása tömbbé
+          ? [JSON.parse(room.coordinates)] // JSON-string konvertálása tömbbé
           : []
         },
         properties: {
@@ -146,7 +148,7 @@ app.post('/api/updateBuildings', async (req, res) => {
         update: { coordinates: JSON.stringify(cleanedCoordinates) },
         create: {
           id: building.properties.id,
-          name: buildingName, // Most már biztosan van értéke
+          name: buildingName, 
           coordinates: JSON.stringify(cleanedCoordinates),
         },
       });
@@ -258,7 +260,34 @@ app.post('/api/updateFloors', async (req, res) => {
   }
 });
 
-// **Szerver indítása**
+// Backend - Keresési API
+app.get("/api/search", async (req, res) => {
+  try {
+    const query = req.query.q;
+    if (!query) {
+      return res.status(400).json({ error: "A keresési lekérdezés szükséges." });
+    }
+
+    // Keresés épületekre
+    const buildings = await prisma.building.findMany({
+      where: { name: { contains: query} },
+    });
+
+    // Keresés termekre (és hozzákapcsoljuk a szintjüket is!)
+    const rooms = await prisma.room.findMany({
+      where: { name: { contains: query } },
+      include: { floor: { include: { building: true } } },
+    });
+
+    res.json({ buildings, rooms });
+  } catch (error) {
+    console.error("🚨 Hiba a keresés során:", error);
+    res.status(500).json({ error: "Hiba történt a keresés során." });
+  }
+});
+
+
+// Szerver indítása
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Szerver fut a http://localhost:${PORT} címen`);

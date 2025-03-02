@@ -10,7 +10,9 @@ datasource db {
 model Building {
   id          Int      @id @default(autoincrement())
   name        String
+  shortName   String?
   coordinates Json?     // Az épület alakját (pl. poligon koordináták) tároljuk
+  group       Json?
   floors      Floor[]
 }
 

@@ -76,7 +76,7 @@ const AdminMap = () => {
           styles: [{ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }],
         });
 
-        // 🔹 Drawing Manager inicializálása
+        // Drawing Manager inicializálása
         drawingManager.current = new window.google.maps.drawing.DrawingManager({
           drawingMode: null, // Alapból nem rajzolunk új objektumot
           drawingControl: true,
@@ -95,7 +95,7 @@ const AdminMap = () => {
 
         drawingManager.current.setMap(map.current);
 
-        // 🔹 Létező épületek és szobák betöltése és szerkeszthetővé tétele
+        // Létező épületek és szobák betöltése és szerkeszthetővé tétele
         const addGeoJSONToMap = (geoJson, color, type) => {
           geoJson.features.forEach((feature) => {
             const polygon = new window.google.maps.Polygon({
@@ -109,7 +109,7 @@ const AdminMap = () => {
 
             polygon.setMap(map.current);
 
-            // 🔹 Kattintáskor az adott objektumot kiválasztjuk
+            //Kattintáskor az adott objektumot kiválasztjuk
             polygon.addListener("click", () => {
               selectedFeature.current = {
                 id: feature.properties.id,
@@ -136,13 +136,28 @@ const AdminMap = () => {
     initMap();
   }, []);
 
-  // 🔹 Kijelölt objektum mentése az API-ba
+  //Kijelölt objektum mentése az API-ba
   async function saveUpdatedFeature() {
     if (!selectedFeature.current) {
       console.warn("❌ Nincs kiválasztott objektum!");
       return;
     }
-
+  
+    let coordinates = selectedFeature.current.polygon
+      .getPath()
+      .getArray()
+      .map((latLng) => [latLng.lng(), latLng.lat()]);
+  
+    // Ha az első és utolsó koordináta nem azonos, zárjuk le a poligont
+    if (
+      coordinates.length > 1 &&
+      (coordinates[0][0] !== coordinates[coordinates.length - 1][0] ||
+        coordinates[0][1] !== coordinates[coordinates.length - 1][1])
+    ) {
+      console.log("Poligon lezárása...");
+      coordinates.push([...coordinates[0]]); // Az első koordinátát az utolsó helyére másoljuk
+    }
+  
     const updatedFeature = {
       type: "FeatureCollection",
       features: [
@@ -150,12 +165,7 @@ const AdminMap = () => {
           type: "Feature",
           geometry: {
             type: "Polygon",
-            coordinates: [
-              selectedFeature.current.polygon
-                .getPath()
-                .getArray()
-                .map((latLng) => [latLng.lng(), latLng.lat()]),
-            ],
+            coordinates: [coordinates],
           },
           properties: {
             id: selectedFeature.current.id,
@@ -163,34 +173,35 @@ const AdminMap = () => {
         },
       ],
     };
-
-    console.log("📩 Mentésre kerül:", updatedFeature);
-
+  
+    console.log("Mentésre kerül:", JSON.stringify(updatedFeature, null, 2));
+  
     let endpoint;
-  switch (selectedFeature.current.type) {
-    case "building":
-      endpoint = `${API_BASE_URL}/updateBuildings`;
-      break;
-    case "floor":
-      endpoint = `${API_BASE_URL}/updateFloors`;
-      break;
-    case "room":
-      endpoint = `${API_BASE_URL}/updateRooms`;
-      break;
-    default:
-      console.error("❌ Ismeretlen típusú objektum!", selectedFeature.current);
-      return;
-  }
-
+    switch (selectedFeature.current.type) {
+      case "building":
+        endpoint = `${API_BASE_URL}/updateBuildings`;
+        break;
+      case "floor":
+        endpoint = `${API_BASE_URL}/updateFloors`;
+        break;
+      case "room":
+        endpoint = `${API_BASE_URL}/updateRooms`;
+        break;
+      default:
+        console.error("Ismeretlen típusú objektum!", selectedFeature.current);
+        return;
+    }
+  
     await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedFeature),
     });
-
+  
     console.log("✅ Mentés sikeres!");
     selectedFeature.current = null;
   }
+  
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
