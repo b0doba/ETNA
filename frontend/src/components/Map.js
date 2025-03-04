@@ -2,9 +2,8 @@ import React, { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchPanel from "./SearchPanel.js";
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyBWeYuU1qGCrmqjhMElUU8Vtn1SkKF0kE8";
+const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_API_KEY; //Maps Platform Api Key
 
-// Google Maps API betöltése biztos módon
 const loadGoogleMapsScript = () => {
   return new Promise((resolve, reject) => {
     if (window.google && window.google.maps) {
@@ -55,11 +54,14 @@ const MapComponent = () => {
   const [currentFloor, setCurrentFloor] = useState(null);
   const [buildingFloors, setBuildingFloors] = useState([]);
   const [highlightedRoom, setHighlightedRoom] = useState(null);
+  const [mapZoom, setMapZoom] = useState(18);
+  const [mapCenter, setMapCenter] = useState({ lat: 47.693344, lng: 17.627529 }); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const handleGroupSelect = (group) => {
     highlightBuilding(null, group); // A highlightBuilding-et hívjuk a kiválasztott csoportra
   };
+
 
   useEffect(() => {
     const initMap = async () => {
@@ -82,10 +84,11 @@ const MapComponent = () => {
         console.log("Térkép inicializálása...");
 
         map.current = new window.google.maps.Map(mapContainer.current, {
-          center: { lat: 47.693344, lng: 17.627529 },
-          zoom: 18,
+         
           streetViewControl: false,
           mapTypeControl: false,
+          zoom: mapZoom,
+          center:  mapCenter,
           fullscreenControl: false,
           styles: [
             {
@@ -95,8 +98,6 @@ const MapComponent = () => {
             },
           ],
         });
-
-        
 
         const addGeoJSONToMap = (geoJson, type) => {
           map.current.data.addGeoJson(geoJson);
@@ -165,7 +166,9 @@ const MapComponent = () => {
           infoWindow.setPosition(event.latLng);
           infoWindow.open(map.current);
         });
+
         // Az X gomb eltüntetése (kis késleltetéssel, hogy biztos működjön)
+        
         setTimeout(() => {
           document.querySelector(".gm-ui-hover-effect")?.remove();
         }, 100);
@@ -183,29 +186,67 @@ const MapComponent = () => {
             const buildingName = event.feature.getProperty("name");
             setSelectedBuilding(buildingName);
             setIsBuildingView(true);
-        
+            
             // Kiválasztott épület szintjeinek lekérése
             const floorsInBuilding = floors.features
               .filter((floor) => floor.properties.building === buildingName)
               .sort((a, b) => a.properties.number - b.properties.number); // Szintek sorrendbe állítása
-        
+            
             setBuildingFloors(floorsInBuilding);
             setCurrentFloor(0); // Alapértelmezett szint mindig 0
-          }
+
+            const buildingFeature = buildings.features.find(
+              (feature) => feature.properties.name === buildingName);
+
+            console.log("Kiválasztott épület belülről: ",buildingFeature.geometry.coordinates);
+
+            if (buildingFeature) {
+              try {
+                let coordinates = buildingFeature.geometry.coordinates;
+
+                // Ellenőrizzük, hogy a koordináták megfelelő formátumban vannak-e
+                if (buildingFeature.geometry.type === "Polygon") {
+                    coordinates = coordinates[0]; // Az első poligon koordinátáit használjuk
+                } else if (buildingFeature.geometry.type === "MultiPolygon") {
+                    coordinates = coordinates[0][0]; // MultiPolygon esetén a legelső poligon első koordináta-listáját használjuk
+                }
+
+                if (!coordinates || coordinates.length === 0) {
+                    throw new Error("Az épület koordinátái üresek vagy hibásak.");
+                }
+
+                const bounds = new window.google.maps.LatLngBounds();
+                coordinates.forEach(([lng, lat]) => {
+                    if (isFinite(lat) && isFinite(lng)) {
+                        bounds.extend(new window.google.maps.LatLng(lat, lng));
+                    }
+                });
+
+                const center = bounds.getCenter();
+                if (center && isFinite(center.lat()) && isFinite(center.lng())) {
+                  setMapCenter(center);
+                  setMapZoom(19);
+                } else {
+                    console.warn("Hibás középpont számítás:", center);
+                }
+            } catch (error) {
+                console.error("Hiba az épület középpontjának meghatározásakor:", error);
+            }
+          }}
         });
-        
 
         map.current.addListener("click", (event) => {
           const feature = map.current.data.getFeatureById(event.featureId);
-        
+
           if (!feature || feature.getProperty("category") !== "building") {
             setSelectedBuilding(null);
             setIsBuildingView(false);
             setCurrentFloor(null);
             setHighlightedRoom(null);
-          }
+            setMapZoom(18);
+          }          
         });
-
+        
         console.log("Térkép sikeresen inicializálva!");
         setLoading(false);
       } catch (err) {
@@ -219,7 +260,8 @@ const MapComponent = () => {
     if (window.location.pathname === "/") {
       navigate("/map", { replace: true });
     }
-  }, [navigate, isBuildingView,currentFloor,selectedBuilding, highlightedRoom]);
+
+  }, [navigate, isBuildingView,currentFloor,selectedBuilding, highlightedRoom, mapZoom, mapCenter]);
 
   const handleSearch = async (query) => {
     if (!query.trim()) return;
@@ -229,13 +271,15 @@ const MapComponent = () => {
       const data = await response.json();
   
       console.log("🔍 Keresési eredmények:", data);
+      
   
       if (data.buildings.length > 0) {
         setIsBuildingView(false); // Külső nézetre váltás
-        setTimeout(() => highlightBuilding(data.buildings[0]), 100); // Kiemelés kis késleltetéssel
+        highlightBuilding(data.buildings[0]); // Kiemelés kis késleltetéssel
       } else if (data.rooms.length > 0) {
         setIsBuildingView(true); // Belső nézetre váltás
-        setTimeout(() => highlightRoom(data.rooms[0]), 100); // Biztosítsd, hogy mindig egy tömböt adunk át
+
+        highlightRoom(data.rooms[0]); // Biztosítsd, hogy mindig egy tömböt adunk át
       } else {
         alert("Nincs találat!");
       }
@@ -243,8 +287,6 @@ const MapComponent = () => {
       console.error("Hiba a keresés során:", error);
     }
   };
-
-  
   
   const highlightBuilding = (building = null, group = null) => {
     if (!map.current) return;
@@ -254,7 +296,39 @@ const MapComponent = () => {
         const coordinates = JSON.parse(building.coordinates);
         const bounds = new window.google.maps.LatLngBounds();
         coordinates.forEach(([lng, lat]) => bounds.extend(new window.google.maps.LatLng(lat, lng)));
-        map.current.fitBounds(bounds);
+        map.current.fitBounds(bounds,120);
+    }
+    else if (group)
+    {
+      let latSum = 0, lngSum = 0, count = 0;
+        const bounds = new window.google.maps.LatLngBounds();
+
+        map.current.data.forEach((feature) => {
+            const featureCategory = feature.getProperty("category");
+            const featureGroup = feature.getProperty("group");
+
+            if (featureCategory === "building" && featureGroup === group) {
+                const geometry = feature.getGeometry(); // A teljes geometria lekérése
+                if (geometry && geometry.getType() === "Polygon") {
+                    const firstPath = geometry.getAt(0); // Az első alakzat lekérése
+                    if (firstPath && firstPath.getAt) {
+                        const firstCoordinate = firstPath.getAt(0); // Az első koordináta lekérése
+                        if (firstCoordinate) {
+                            latSum += firstCoordinate.lat();
+                            lngSum += firstCoordinate.lng();
+                            count++;
+                            bounds.extend(firstCoordinate);
+                        }
+                    }
+                }
+            }
+        });
+
+        if (count > 0) {
+            const center = { lat: latSum / count, lng: lngSum / count }; // 🔥 Átlagolás
+            map.current.panTo(center); // 🔥 Simán odarepül
+            map.current.fitBounds(bounds, 280); // Minden épület beleférjen a nézetbe
+        }
     }
 
     map.current.data.setStyle((feature) => {
@@ -292,18 +366,27 @@ const MapComponent = () => {
     setIsBuildingView(true);
     setCurrentFloor(room.floor.number);
     setHighlightedRoom(room);
-  
+
     console.log("📌 Kiemelt szoba:", room);
+    if(room){
+    // **Terem középpontjának kiszámítása**
+    const coordinates = JSON.parse(room.coordinates);
+    const bounds = new window.google.maps.LatLngBounds();
+    coordinates.forEach(([lng, lat]) => bounds.extend(new window.google.maps.LatLng(lat, lng)));
+    setTimeout(() => {
+    map.current.fitBounds(bounds,100);
+    }, 400);
+    }
   
     // Ellenőrzés: Milyen adatokat kap a térkép?
-    map.current.data.forEach((feature) => {
+    /*map.current.data.forEach((feature) => {
       console.log("🔎 Feature a térképen:", {
         name: feature.getProperty("name"),
         category: feature.getProperty("category"),
         building: feature.getProperty("building"),
         floor: feature.getProperty("floor"),
       });
-    });
+    });*/
   
     setTimeout(() => {
       map.current.data.setStyle((feature) => {
@@ -313,7 +396,7 @@ const MapComponent = () => {
         const floorNumber = feature.getProperty("number");
         const roomFloor = feature.getProperty("floor");
   
-        console.log("🎯 Feature ellenőrzése:", { featureName, category, buildingName, floorNumber, roomFloor });
+        //console.log("🎯 Feature ellenőrzése:", { featureName, category, buildingName, floorNumber, roomFloor });
   
         // A keresett szoba kiemelése pirossal
         if (category === "room" && featureName?.trim() === room.name.trim()) {
@@ -337,8 +420,6 @@ const MapComponent = () => {
   
   
   
-  
-  
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
@@ -352,7 +433,7 @@ const MapComponent = () => {
       {error && <p style={{ color: "red" }}>Hiba történt: {error}</p>}
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
       
-      {isBuildingView && buildingFloors.length > 0 && (
+      {(isBuildingView || highlightedRoom) && buildingFloors.length > 0 && (
       <div className="slider-container">
         <p className="slider-label">Szint: {currentFloor}</p>
         <input

@@ -29,7 +29,8 @@ app.get("/api/buildings", async (req, res) => {
           id: building.id,
           name: building.name,
           shortName: building.shortName ?? null,
-          group: building.group ?? null, 
+          group: building.group ?? null,
+          coordinates: building.coordinates ? JSON.parse(building.coordinates) : null, 
           category: "building",
         },
       })),
@@ -260,6 +261,7 @@ app.post('/api/updateFloors', async (req, res) => {
   }
 });
 
+
 // Backend - Keresési API
 app.get("/api/search", async (req, res) => {
   try {
@@ -270,7 +272,12 @@ app.get("/api/search", async (req, res) => {
 
     // Keresés épületekre
     const buildings = await prisma.building.findMany({
-      where: { name: { contains: query} },
+      where: {
+        OR: [
+          { name: { contains: query} },
+          { shortName: { contains: query } }
+        ]
+      }
     });
 
     // Keresés termekre (és hozzákapcsoljuk a szintjüket is!)

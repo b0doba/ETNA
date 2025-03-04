@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import searchIcon from "../assets/icons/arrow.svg";
 import routeIcon from "../assets/icons/pitch.svg";
 import "../App.css";
@@ -8,11 +8,36 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [startPoint, setStartPoint] = useState("");
   const [destination, setDestination] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [activeInput, setActiveInput] = useState("search");
 
-  
-  const handleSearch = () => {
-    onSearch(searchQuery);
-  };
+  useEffect(() => {
+    const fetchSuggestions = async (query) => {
+      if (!query.trim()) {
+        setSuggestions([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:5000/api/search?q=${query}`);
+        const data = await response.json();
+
+        let results = [
+          ...data.buildings.map((b) => ({ name: b.name, type: "Épület" })),
+          ...data.rooms.map((r) => ({ name: r.name, type: "Terem" }))
+        ];
+
+        setSuggestions(results);
+      } catch (error) {
+        console.error("Hiba a keresési javaslatok betöltésekor:", error);
+      }
+    };
+
+    if (activeInput === "search") fetchSuggestions(searchQuery);
+    if (activeInput === "start") fetchSuggestions(startPoint);
+    if (activeInput === "destination") fetchSuggestions(destination);
+
+  }, [searchQuery, startPoint, destination, activeInput]);
   
   // Keresési funkció az útvonalhoz
   const handleRouteSearch = () => {
@@ -24,7 +49,10 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
     }
   };
 
-
+  const handleSearch = () => {
+    onSearch(searchQuery);
+    setSuggestions([]);
+  };
 
   return (
     <>
@@ -39,15 +67,28 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
     <div className="search-panel">
       {!showRouteInputs ? (
         <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Keresés..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <button className="search-btn" onClick={handleSearch}>
-            <img src={searchIcon} alt="Keresés" />
-          </button>
+          <div className="autocomplete">
+              <input
+                type="text"
+                placeholder="Keresés..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setActiveInput("search")}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+              />
+              {suggestions.length > 0 && activeInput === "search" && (
+                <ul className="autocomplete-list">
+                  {suggestions.map((item, index) => (
+                    <li key={index} onClick={() => { setSearchQuery(item.name); handleSearch(); }}>
+                      {item.name} ({item.type})
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <button className="search-btn" onClick={handleSearch}>
+              <img src={searchIcon} alt="Keresés" />
+            </button>
           <button className="route-btn" onClick={() => setShowRouteInputs(true)}>
             <img src={routeIcon} alt="Útvonaltervezés" />
           </button>

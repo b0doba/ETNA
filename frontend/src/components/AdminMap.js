@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyBWeYuU1qGCrmqjhMElUU8Vtn1SkKF0kE8";
+const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_API_KEY;
 const API_BASE_URL = "http://localhost:5000/api";
 
 // Google Maps API betöltése
