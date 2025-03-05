@@ -47,14 +47,15 @@ html, body {
 
 .search-panel {
   position: absolute;
-  top: 60px;
+  top: 10px;
   left: 10px;
   background: white;
-  padding: 35px; 
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 35px;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
   gap: 10px; /* Jobb elválasztás az elemek között */
   z-index: 1000;
-  width: 350px;
+  width: 300px;
 }
 
 .search-bar {
@@ -73,12 +74,24 @@ html, body {
   width: 100%; /* Teljes szélesség a konténerben */
 }
 
-.search-btn,
-.route-btn {
+.search-btn {
   background: #6b727b;
   color: white;
   border: none;
-  padding: 12px 10px;
+  margin-left: 23px;
+  padding: 11px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.route-btn{
+  background: #6b727b;
+  color: white;
+  border: none;
+  padding: 11px 9px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -111,7 +124,7 @@ html, body {
   border-radius: 4px;
   font-size: 14px;
   width: 90%; /* Teljes szélesség */
-  height: 30px;
+  height: 27px;
 }
 
 .route-inputs .route-btn {
@@ -139,7 +152,7 @@ html, body {
 .category-buttons {
   position: absolute;
   top: 10px;
-  left: 350px;
+  left: 390px;
   display: flex;
   gap: 10px;
   z-index: 1000;
@@ -161,21 +174,7 @@ html, body {
   background: #f0f0f0;
 }
 
-/* Keresőpanel módosítás */
-.search-panel {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background: white;
-  padding: 40px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  border-radius: 10px;
-  gap: 10px;
-  z-index: 1000;
-  width: 244px;
-}
+
 
 .custom-info-window {
   font-family: Arial, sans-serif;
@@ -279,7 +278,7 @@ html, body {
   position: absolute;
   top: 100%;
   left: 0;
-  width: 100%;
+  width: 110%;
   background: white;
   border: 1px solid #ccc;
   border-top: none;

@@ -27,7 +27,11 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
           ...data.rooms.map((r) => ({ name: r.name, type: "Terem" }))
         ];
 
-        setSuggestions(results);
+        if (results.some(item => item.name === query)) {
+          setSuggestions([]);
+        } else {
+          setSuggestions(results);
+        }
       } catch (error) {
         console.error("Hiba a keresési javaslatok betöltésekor:", error);
       }
@@ -79,7 +83,7 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
               {suggestions.length > 0 && activeInput === "search" && (
                 <ul className="autocomplete-list">
                   {suggestions.map((item, index) => (
-                    <li key={index} onClick={() => { setSearchQuery(item.name); handleSearch(); }}>
+                    <li key={index} onClick={() => { setSearchQuery(item.name); setSuggestions([]);}}>
                       {item.name} ({item.type})
                     </li>
                   ))}
