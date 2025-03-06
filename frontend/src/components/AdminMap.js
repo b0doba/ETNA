@@ -201,7 +201,6 @@ const AdminMap = () => {
     console.log("✅ Mentés sikeres!");
     selectedFeature.current = null;
   }
-  
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>

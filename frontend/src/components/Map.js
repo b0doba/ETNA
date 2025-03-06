@@ -67,7 +67,7 @@ const MapComponent = () => {
     const initMap = async () => {
       try {
         await loadGoogleMapsScript();
-        const [buildings,floors, rooms] = await Promise.all([
+        const [buildings,rooms, floors] = await Promise.all([
           fetchGeoJSON("http://localhost:5000/api/buildings"),
           fetchGeoJSON("http://localhost:5000/api/rooms"),
           fetchGeoJSON("http://localhost:5000/api/floors")
@@ -142,8 +142,6 @@ const MapComponent = () => {
         addGeoJSONToMap(rooms,"room");
         addGeoJSONToMap(floors, "floor");
 
-        // MOUSEOVER
-
         const infoWindow = new window.google.maps.InfoWindow();
 
         map.current.data.addListener("mouseover", (event) => {
@@ -192,6 +190,9 @@ const MapComponent = () => {
               .filter((floor) => floor.properties.building === buildingName)
               .sort((a, b) => a.properties.number - b.properties.number); // Szintek sorrendbe állítása
             
+            console.log("Az összes szint az API válaszból:", floors.features);
+
+
             setBuildingFloors(floorsInBuilding);
             setCurrentFloor(0); // Alapértelmezett szint mindig 0
 
@@ -262,8 +263,29 @@ const MapComponent = () => {
       navigate("/map", { replace: true });
     }
 
-  }, [navigate, isBuildingView, currentFloor,selectedBuilding, highlightedRoom, mapZoom, mapCenter]);
+  }, [navigate, isBuildingView, currentFloor, selectedBuilding, highlightedRoom, mapZoom, mapCenter]);
 
+
+  const fetchBuildingFloors = async (buildingName) => {
+    try {
+        const response = await fetch(`http://localhost:5000/api/floors?building=${buildingName}`);
+        const data = await response.json();
+
+        // 🔥 Átalakítjuk a GeoJSON features tömböt egyszerűbb objektum tömbbé
+        const floors = data.features.map((feature) => ({
+            id: feature.properties.id,
+            number: feature.properties.number,
+            height: feature.properties.height,
+            building: feature.properties.building,
+            coordinates: JSON.stringify(feature.geometry.coordinates), // Eltároljuk a koordinátákat is!
+        }));
+
+        return floors; // Visszaadjuk a megfelelő struktúrát
+    } catch (error) {
+        console.error("Hiba a szintek betöltésekor:", error);
+        return [];
+    }
+};
 
   const handleSearch = async (query) => {
     if (!query.trim()) return;
@@ -272,19 +294,19 @@ const MapComponent = () => {
       const response = await fetch(`http://localhost:5000/api/search?q=${query}`);
       const data = await response.json();
   
-      console.log("🔍 Keresési eredmények:", data);
-      
+      console.log("Keresési eredmények:", data);
   
       if (data.buildings.length > 0) {
         setIsBuildingView(false); // Külső nézetre váltás
         setHighlightedRoom(null);
+
         setTimeout(() => {
-          highlightBuilding(data.buildings[0]); 
+          highlightBuilding(data.buildings[0]);
         }, 200); // Kiemelés kis késleltetéssel
+
       } else if (data.rooms.length > 0) {
-        const room = data.rooms[0]; // Az első találatot használjuk
-            setIsBuildingView(true); // Belső nézetre váltás
-            setCurrentFloor(room.floor.number); // 🔥 Beállítjuk az aktuális szintet
+        const room = data.rooms[0];
+            setIsBuildingView(true);
             highlightRoom(room);
       } else {
         alert("Nincs találat!");
@@ -365,13 +387,16 @@ const MapComponent = () => {
     });
 };
   
-  const highlightRoom = (room) => {
+  const highlightRoom = async(room) => {
     if (!map.current) return;
     
-    console.log("📌 Kiemelt szoba:", room);
+    const buildingName = room.floor.building.name;
+    console.log("Épület neve:", buildingName);
+
+    const floors = await fetchBuildingFloors(buildingName);
+
     setIsBuildingView(true);
     setSelectedBuilding(room.floor.building.name);
-    const floors = room?.floor?.building?.floors || []; // Ha nincs, akkor üres tömb
     setBuildingFloors(floors);
     setCurrentFloor(room.floor.number);
     setHighlightedRoom(room);
@@ -411,9 +436,6 @@ const MapComponent = () => {
       return { visible: false };
     });
   };
-  
-  
-  
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
@@ -427,13 +449,13 @@ const MapComponent = () => {
       {error && <p style={{ color: "red" }}>Hiba történt: {error}</p>}
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
       
-      { isBuildingView && (
+      { isBuildingView && buildingFloors.length > 0 && (
       <div className="slider-container">
         <p className="slider-label">Szint: {currentFloor}</p>
         <input
           type="range"
           min={0}
-          max={buildingFloors.length - 2}
+          max={buildingFloors.length - 1}
           value={currentFloor ?? 0}
           onChange={(e) => setCurrentFloor(Number(e.target.value))}
           className="slider"
