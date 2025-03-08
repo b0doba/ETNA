@@ -146,10 +146,17 @@ app.post('/api/updateBuildings', async (req, res) => {
 
       await prisma.building.upsert({
         where: { id: building.properties.id },
-        update: { coordinates: JSON.stringify(cleanedCoordinates) },
+        update: {
+          name: building.properties.name || buildingName,
+          shortName: building.properties.shortName || existingBuilding.shortName,
+          group: building.properties.group || existingBuilding.group,
+          coordinates: JSON.stringify(cleanedCoordinates),
+        },
         create: {
           id: building.properties.id,
-          name: buildingName, 
+          name: buildingName,
+          shortName: building.properties.shortName || "",
+          group: building.properties.group || "",
           coordinates: JSON.stringify(cleanedCoordinates),
         },
       });
@@ -196,7 +203,11 @@ app.post('/api/updateRooms', async (req, res) => {
 
       await prisma.room.upsert({
         where: { id: room.properties.id },
-        update: { coordinates: JSON.stringify(cleanedCoordinates) },
+        update: {
+          name: room.properties.name || roomName,
+          type: room.properties.type || roomType,
+          coordinates: JSON.stringify(cleanedCoordinates),
+        },
         create: {
           id: room.properties.id,
           name: roomName,
@@ -243,7 +254,11 @@ app.post('/api/updateFloors', async (req, res) => {
 
       await prisma.floor.upsert({
         where: { id: floor.properties.id },
-        update: { coordinates: JSON.stringify(cleanedCoordinates) },
+        update: {
+          number: floor.properties.number || existingFloor.number,
+          height: floor.properties.height || existingFloor.height,
+          coordinates: JSON.stringify(cleanedCoordinates), 
+        },
         create: {
           id: floor.properties.id,
           number: existingFloor.number,
