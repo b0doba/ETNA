@@ -308,6 +308,109 @@ app.get("/api/search", async (req, res) => {
   }
 });
 
+// Új épület létrehozása
+app.post("/api/createBuildings", async (req, res) => {
+  try {
+    const { name, shortName, group, coordinates } = req.body;
+
+    if (!name || !coordinates) {
+      return res.status(400).json({ error: "Név és koordináták szükségesek!" });
+    }
+
+    const newBuilding = await prisma.building.create({
+      data: {
+        name,
+        shortName: shortName || null,
+        group: group ? JSON.stringify(group) : null,
+        coordinates: coordinates ? [JSON.stringify(coordinates)] : [],
+      },
+    });
+
+    res.status(201).json({ success: true, message: "Épület sikeresen létrehozva!", building: newBuilding });
+  } catch (error) {
+    console.error("🚨 Hiba az épület létrehozásakor:", error);
+    res.status(500).json({ error: "Nem sikerült létrehozni az épületet." });
+  }
+});
+
+// Új emelet létrehozása
+app.post("/api/createFloors", async (req, res) => {
+  try {
+    const { buildingId, number, height, coordinates } = req.body;
+
+    if (!buildingId || number === undefined || height === undefined) {
+      return res.status(400).json({ error: "Minden mező kitöltése kötelező!" });
+    }
+
+    const newFloor = await prisma.floor.create({
+      data: {
+        buildingId,
+        number,
+        height,
+        coordinates: coordinates ? [JSON.stringify(coordinates)] : [],
+      },
+    });
+
+    res.status(201).json({ success: true, message: "Emelet sikeresen létrehozva!", floor: newFloor });
+  } catch (error) {
+    console.error("🚨 Hiba az emelet létrehozásakor:", error);
+    res.status(500).json({ error: "Nem sikerült létrehozni az emeletet." });
+  }
+});
+
+// Új terem létrehozása
+app.post("/api/createRooms", async (req, res) => {
+  try {
+    const { floorId, name, type, coordinates } = req.body;
+
+    if (!floorId || !name || !type) {
+      return res.status(400).json({ error: "Minden mező kitöltése kötelező!" });
+    }
+
+    const newRoom = await prisma.room.create({
+      data: {
+        floorId,
+        name,
+        type,
+        coordinates: coordinates ? [JSON.stringify(coordinates)] : [],
+      },
+    });
+
+    res.status(201).json({ success: true, message: "Terem sikeresen létrehozva!", room: newRoom });
+  } catch (error) {
+    console.error("🚨 Hiba a terem létrehozásakor:", error);
+    res.status(500).json({ error: "Nem sikerült létrehozni a termet." });
+  }
+});
+
+app.delete("/api/deleteBuilding/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Az épület ID megadása kötelező!" });
+    }
+
+    // Ellenőrizzük, hogy létezik-e az épület
+    const building = await prisma.building.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!building) {
+      return res.status(404).json({ error: "Az épület nem található!" });
+    }
+
+    // Törlés
+    await prisma.building.delete({
+      where: { id: parseInt(id) },
+    });
+
+    res.status(200).json({ success: true, message: "Épület sikeresen törölve!" });
+  } catch (error) {
+    console.error("🚨 Hiba az épület törlésekor:", error);
+    res.status(500).json({ error: "Nem sikerült törölni az épületet." });
+  }
+});
 
 // Szerver indítása
 const PORT = 5000;
