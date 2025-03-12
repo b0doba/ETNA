@@ -64,6 +64,7 @@ app.get("/api/rooms", async (req, res) => {
           id: room.id,
           name: room.name,
           floor: room.floor.number,
+          floorId: room.floor.id,
           type: room.type,
           building: room.floor.building.name,
           category: "room",
@@ -103,6 +104,7 @@ app.get("/api/floors", async (req, res) => {
           number: floor.number,
           height: floor.height,
           building: floor.building.name,
+          buildingId: floor.building.id,
           category: "floor",
         },
       })),
@@ -391,24 +393,89 @@ app.delete("/api/deleteBuilding/:id", async (req, res) => {
       return res.status(400).json({ error: "Az épület ID megadása kötelező!" });
     }
 
+    const buildingId = parseInt(id, 10);
+
     // Ellenőrizzük, hogy létezik-e az épület
     const building = await prisma.building.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: buildingId },
+      include: { floors: { include: { rooms: true } } } // Betöltjük az emeleteket és szobákat is
     });
 
     if (!building) {
       return res.status(404).json({ error: "Az épület nem található!" });
     }
 
-    // Törlés
-    await prisma.building.delete({
-      where: { id: parseInt(id) },
-    });
+    // Törlés: Először szobákat, majd szinteket, végül az épületet töröljük
+    for (const floor of building.floors) {
+      await prisma.room.deleteMany({ where: { floorId: floor.id } }); // Szobák törlése
+    }
+    await prisma.floor.deleteMany({ where: { buildingId } }); // Szintek törlése
+    await prisma.building.delete({ where: { id: buildingId } }); // Épület törlése
 
-    res.status(200).json({ success: true, message: "Épület sikeresen törölve!" });
+    res.status(200).json({ success: true, message: "Épület és összes emelete és terme törölve!" });
   } catch (error) {
     console.error("🚨 Hiba az épület törlésekor:", error);
     res.status(500).json({ error: "Nem sikerült törölni az épületet." });
+  }
+});
+
+app.delete("/api/deleteFloor/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Az emelet ID megadása kötelező!" });
+    }
+
+    const floorId = parseInt(id, 10);
+
+    // Ellenőrizzük, hogy létezik-e az emelet
+    const floor = await prisma.floor.findUnique({
+      where: { id: floorId },
+      include: { rooms: true } // Betöltjük a szobákat is
+    });
+
+    if (!floor) {
+      return res.status(404).json({ error: "Az emelet nem található!" });
+    }
+
+    // Törlés: Először szobákat, majd az emeletet töröljük
+    await prisma.room.deleteMany({ where: { floorId } }); // Szobák törlése
+    await prisma.floor.delete({ where: { id: floorId } }); // Emelet törlése
+
+    res.status(200).json({ success: true, message: "Emelet és összes terme törölve!" });
+  } catch (error) {
+    console.error("🚨 Hiba az emelet törlésekor:", error);
+    res.status(500).json({ error: "Nem sikerült törölni az emeletet." });
+  }
+});
+
+app.delete("/api/deleteRoom/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "A szoba ID megadása kötelező!" });
+    }
+
+    const roomId = parseInt(id, 10);
+
+    // Ellenőrizzük, hogy létezik-e a szoba
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+    });
+
+    if (!room) {
+      return res.status(404).json({ error: "A szoba nem található!" });
+    }
+
+    // Szoba törlése
+    await prisma.room.delete({ where: { id: roomId } });
+
+    res.status(200).json({ success: true, message: "Szoba sikeresen törölve!" });
+  } catch (error) {
+    console.error("🚨 Hiba a szoba törlésekor:", error);
+    res.status(500).json({ error: "Nem sikerült törölni a szobát." });
   }
 });
 

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import "../AdminLook.css";
+import DeleteItem from "./DeleteItem";
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_API_KEY;
 const API_BASE_URL = "http://localhost:5000/api";
@@ -69,20 +70,23 @@ const AdminMap = () => {
 
         setBuildings(buildings.features.map(feature => ({
           id: feature.properties.id,
-          name: feature.properties.name
+          name: feature.properties.name,
+          group: feature.properties.group,
         })));
         
         setFloors(floors.features.map(feature => ({
           id: feature.properties.id,
           number: feature.properties.number,
+          building: feature.properties.building,
           buildingId: feature.properties.buildingId
         })));
         
         /*setRooms(rooms.features.map(feature => ({
           id: feature.properties.id,
-          name: feature.properties.name,
-          floorId: feature.properties.floorId,
-          buildingId: feature.properties.buildingId
+          name: feature.properties.number,
+          group: feature.properties.group,
+          floor: feature.properties.floor,
+          floorId: feature.properties.floorId
         })));*/
 
         if (!window.google || !window.google.maps) {
@@ -175,11 +179,9 @@ const AdminMap = () => {
               setSelectedData({
                 coordinates: coordinates, // ✅ A megfelelő koordináták átadása
               });
-
             
               //console.log("🔴 Rajzolás mód KI: visszaállt a kézi mozgatás.");
             });
-            
             
             //Kattintáskor az adott objektumot kiválasztjuk
             polygon.addListener("click", () => {
@@ -187,8 +189,7 @@ const AdminMap = () => {
               activeEdges.forEach(edge => edge.setMap(null));
               activeEdges = [];
 
-
-              const { id, category, name, shortName, group, number, height } = feature.properties;
+              const { id, category, name, shortName, group, number, height, type } = feature.properties;
               
               let selectedObject = { id, category, polygon};
               
@@ -325,7 +326,7 @@ const AdminMap = () => {
   }, [mapRefreshTrigger]);
 
   const simplifyPolygon = (points, tolerance = 0.0001, minDistance = 0.000001) => {
-    if (points.length < 3) return points; // 📌 Mindig legalább 3 pont kell egy poligonhoz
+    if (points.length < 3) return points; // Mindig legalább 3 pont kell egy poligonhoz
   
     const sqTolerance = tolerance * tolerance;
     const sqMinDistance = minDistance * minDistance;
@@ -337,7 +338,7 @@ const AdminMap = () => {
       return dx * dx + dy * dy;
     };
 
-    // 🔍 Túl közeli pontok eltávolítása
+    // Túl közeli pontok eltávolítása
   const removeClosePoints = (points) => {
     return points.filter((point, index, arr) => {
       if (index === 0) return true; // Az első pontot mindig megtartjuk
@@ -373,10 +374,9 @@ const AdminMap = () => {
     let simplified = [...simplify(filteredPoints, 0, filteredPoints.length - 1), filteredPoints[filteredPoints.length - 1]];
     //Ha a poligon túl egyszerűsödött, visszaállítjuk az eredetit
     if (simplified.length < 3) {
-      console.warn("❗ Poligon túl egyszerűsítve, visszaállítás eredeti pontra");
+      console.warn("Poligon túl egyszerűsítve, visszaállítás eredeti pontra");
       return points;
     }
-  
     return simplified;
   };
 
@@ -446,7 +446,6 @@ const AdminMap = () => {
       alert("❌ Nem sikerült menteni az adatokat.");
     }
   };
-  
 
   //Kijelölt objektum mentése az API-ba
   async function saveUpdatedFeature() {
@@ -549,6 +548,7 @@ const AdminMap = () => {
     <div className="admin-map-container">
       {loading && <p>Betöltés...</p>}
       {error && <p>Hiba történt: {error}</p>}
+      
       {selectedData && (
         <div className="info-box">
           {!selectedData.id && (
@@ -591,7 +591,9 @@ const AdminMap = () => {
                 {!selectedData.id && (
                   <>
                     <label>Épület:</label>
-                    <select onChange={(e) => setSelectedData({ ...selectedData, buildingId: parseInt(e.target.value,10) })}>
+                    <select
+                    onChange={(e) => setSelectedData({ ...selectedData, buildingId: parseInt(e.target.value,10) })}
+                    >
                       <option value="">Válassz épületet</option>
                       {buildings.map((building) => (
                         <option key={building.id} value={building.id}>{building.name}</option>
@@ -617,22 +619,33 @@ const AdminMap = () => {
               <div className="info-fields">
                 {!selectedData.id && (
                 <>
-                  <label>Épület:</label>
-                  <select onChange={(e) => setSelectedData({ ...selectedData, buildingId: e.target.value })}>
+                <label>Épület:</label>
+                <select
+                  onChange={(e) => {
+                    const selectedBuildingId = parseInt(e.target.value, 10);
+                    const selectedBuilding = buildings.find(b => b.id === selectedBuildingId);
+                    setSelectedData({
+                      ...selectedData,
+                      buildingId: selectedBuildingId,
+                      buildingName: selectedBuilding ? selectedBuilding.name : "",
+                    });
+                  }}>
                     <option value="">Válassz épületet</option>
                     {buildings.map((building) => (
                       <option key={building.id} value={building.id}>{building.name}</option>
                     ))}
                   </select>
                   <label>Emelet:</label>
-                  <select onChange={(e) => setSelectedData({ ...selectedData, floorId: e.target.value })}>
-                    <option value="">Válassz emeletet</option>
-                    {floors
-                      .filter(floor => floor.buildingId === selectedData.buildingId)
-                      .map((floor) => (
-                        <option key={floor.id} value={floor.id}>{floor.number}. emelet</option>
+                  <select
+                  onChange={(e) => setSelectedData({ ...selectedData, floorId: parseInt(e.target.value, 10) || null})}
+                  disabled={!selectedData.buildingId}>
+                  <option value="">Válassz emeletet</option>
+                  {floors
+                    .filter(floor => floor.buildingId === selectedData.buildingId)
+                    .map((floor) => (
+                      <option key={floor.id} value={floor.id}>{floor.number}. emelet</option>
                     ))}
-                  </select>
+                </select>
                   <label>Név:</label>
                   <input type="text" value={selectedData.name || ""} onChange={(e) => setSelectedData({ ...selectedData, name: e.target.value })} />
                   <label>Típus:</label>
@@ -655,8 +668,8 @@ const AdminMap = () => {
             </div>
           </div>
         )}
-      <button className="save-button" onClick={saveUpdatedFeature}>Kijelölt objektum mentése</button>
-      <div ref={mapContainer} className="map-container"/>
+      <DeleteItem/>
+      <div ref={mapContainer} className="admin-map-container"/>
     </div>
   );
 };
