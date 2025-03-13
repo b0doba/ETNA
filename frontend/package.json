@@ -3,14 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@mapbox/mapbox-gl-draw": "^1.5.0",
-    "cra-template": "1.2.0",
-    "dotenv-expand": "^12.0.1",
-    "mapbox-gl": "^3.9.4",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.4",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
     "web-vitals": "^4.2.4"
   },
   "scripts": {
@@ -37,5 +33,13 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:5000"
+  "proxy": "http://localhost:5000",
+  "overrides": {
+    "nth-check": "2.1.1",
+    "postcss": "8.4.47",
+    "resolve-url-loade": "5.0.0"
+},
+  "devDependencies": {
+    "eslint-config-react-app": "^7.0.1"
+  }
 }

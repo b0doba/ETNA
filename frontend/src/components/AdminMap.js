@@ -118,8 +118,10 @@ const AdminMap = () => {
             position: window.google.maps.ControlPosition.TOP_LEFT,
             drawingModes: [
               window.google.maps.drawing.OverlayType.POLYGON,
+              window.google.maps.drawing.OverlayType.RECTANGLE, //- téglalap
               //window.google.maps.drawing.OverlayType.MARKER,
-            ], // Csak poligon engedélyezett
+              //window.google.maps.drawing.OverlayType.POLYLINE,
+            ],
           },
           polygonOptions: {
             editable: true,
