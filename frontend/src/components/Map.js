@@ -1,39 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchPanel from "./SearchPanel.js";
-
-const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_API_KEY; //Maps Platform Api Key
-
-const loadGoogleMapsScript = () => {
-  return new Promise((resolve, reject) => {
-    if (window.google && window.google.maps) {
-      console.log("Google Maps API már betöltve.");
-      resolve();
-      return;
-    }
-
-    const existingScript = document.getElementById("google-maps-script");
-    if (existingScript) {
-      existingScript.addEventListener("load", resolve);
-      existingScript.addEventListener("error", () => reject(new Error("Google Maps API betöltési hiba.")));
-      return;
-    }
-
-    console.log("Google Maps API betöltése...");
-
-    const script = document.createElement("script");
-    script.id = "google-maps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&loading=async&libraries=places&callback=initGoogleMaps`;
-    script.async = true;
-    script.onerror = () => reject(new Error("Google Maps API betöltési hiba."));
-    document.body.appendChild(script);
-
-    window.initGoogleMaps = () => {
-      console.log("Google Maps API sikeresen betöltődött.");
-      resolve();
-    };
-  });
-};
+import loadGoogleMapsScript from "./loadGoogleMap";
 
 const fetchGeoJSON = async (url) => {
   try {
@@ -61,7 +29,6 @@ const MapComponent = () => {
   const handleGroupSelect = (group) => {
     highlightBuilding(null, group); // A highlightBuilding-et hívjuk a kiválasztott csoportra
   };
-
 
   useEffect(() => {
     const initMap = async () => {

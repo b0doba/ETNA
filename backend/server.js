@@ -313,11 +313,14 @@ app.get("/api/search", async (req, res) => {
 // Új épület létrehozása
 app.post("/api/createBuildings", async (req, res) => {
   try {
-    const { name, shortName, group, coordinates } = req.body;
+    const { name, shortName, group, coordinates, numberOfFloors} = req.body;
 
     if (!name || !coordinates) {
       return res.status(400).json({ error: "Név és koordináták szükségesek!" });
     }
+
+    const totalFloors = Number.isInteger(numberOfFloors) ? numberOfFloors : 1;
+    const validFloorHeight = typeof floorHeight === "number" ? floorHeight : 3.0;
 
     const newBuilding = await prisma.building.create({
       data: {
@@ -328,7 +331,31 @@ app.post("/api/createBuildings", async (req, res) => {
       },
     });
 
-    res.status(201).json({ success: true, message: "Épület sikeresen létrehozva!", building: newBuilding });
+    const floorsData = Array.from({ length: totalFloors  }, (_, index) => ({
+      buildingId: newBuilding.id,
+      number: index,
+      height: validFloorHeight,
+      coordinates: coordinates ? [JSON.stringify(coordinates)] : [],
+    }));
+
+    await prisma.floor.createMany({
+      data: floorsData,
+    });
+
+    /*const newFloor = await prisma.floor.create({
+      data: {
+        buildingId: newBuilding.id,
+        number: 0,
+        height: validFloorHeight,
+        coordinates: coordinates ? [JSON.stringify(coordinates)] : [], // Ugyanaz a koordináta, mint az épületnél
+      },
+    });*/
+
+    res.status(201).json({
+      success: true,
+      message: `Épület sikeresen létrehozva ${totalFloors} emelettel!`,
+      building: newBuilding,
+    });
   } catch (error) {
     console.error("🚨 Hiba az épület létrehozásakor:", error);
     res.status(500).json({ error: "Nem sikerült létrehozni az épületet." });

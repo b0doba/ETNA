@@ -1,36 +1,9 @@
 import React, { useRef, useEffect, useState } from "react";
+import loadGoogleMapsScript from "./loadGoogleMap";
 import "../AdminLook.css";
 import DeleteItem from "./DeleteItem";
 
-const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_API_KEY;
 const API_BASE_URL = "http://localhost:5000/api";
-
-// Google Maps API betöltése
-const loadGoogleMapsScript = () => {
-  return new Promise((resolve, reject) => {
-    if (window.google && window.google.maps) {
-      resolve();
-      return;
-    }
-
-    if (document.getElementById("google-maps-script")) {
-      document.getElementById("google-maps-script").addEventListener("load", resolve);
-      document.getElementById("google-maps-script").addEventListener("error", () =>
-        reject(new Error("Google Maps API betöltési hiba."))
-      );
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "google-maps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&loading=async&libraries=drawing`;
-    script.async = true;
-    script.defer = true;
-    script.onload = resolve;
-    script.onerror = () => reject(new Error("Google Maps API betöltési hiba."));
-    document.body.appendChild(script);
-  });
-};
 
 // API-ból GeoJSON adatok lekérése
 const fetchGeoJSON = async (url) => {
@@ -118,7 +91,7 @@ const AdminMap = () => {
             position: window.google.maps.ControlPosition.TOP_LEFT,
             drawingModes: [
               window.google.maps.drawing.OverlayType.POLYGON,
-              window.google.maps.drawing.OverlayType.RECTANGLE, //- téglalap
+              //window.google.maps.drawing.OverlayType.RECTANGLE, //- téglalap
               //window.google.maps.drawing.OverlayType.MARKER,
               //window.google.maps.drawing.OverlayType.POLYLINE,
             ],
@@ -327,60 +300,69 @@ const AdminMap = () => {
     initMap();
   }, [mapRefreshTrigger]);
 
-  const simplifyPolygon = (points, tolerance = 0.0001, minDistance = 0.000001) => {
-    if (points.length < 3) return points; // Mindig legalább 3 pont kell egy poligonhoz
-  
-    const sqTolerance = tolerance * tolerance;
+  const simplifyPolygon = (points, minDistance = 0.000001) => {
+    if (points.length < 3) return points; // Ha túl kevés pont van, nem módosítunk
+
     const sqMinDistance = minDistance * minDistance;
-  
+
     // Euklideszi távolság négyzetes formában
     const getSqDist = (p1, p2) => {
-      const dx = p1[0] - p2[0]; // lng
-      const dy = p1[1] - p2[1]; // lat
-      return dx * dx + dy * dy;
+        const dx = p1[0] - p2[0];
+        const dy = p1[1] - p2[1];
+        return dx * dx + dy * dy;
     };
 
-    // Túl közeli pontok eltávolítása
-  const removeClosePoints = (points) => {
-    return points.filter((point, index, arr) => {
-      if (index === 0) return true; // Az első pontot mindig megtartjuk
-      return getSqDist(point, arr[index - 1]) > sqMinDistance; // Csak akkor tartjuk meg, ha távolabb van az előzőtől
-    });
-  };
-  
-    // Legtávolabbi pont keresése
-    const findFurthest = (points, first, last) => {
-      let maxDist = 0;
-      let index = -1;
-      for (let i = first + 1; i < last; i++) {
-        const dist = getSqDist(points[i], points[first]);
-        if (dist > maxDist) {
-          maxDist = dist;
-          index = i;
+    let filteredPoints = [];
+
+    for (let i = 0; i < points.length; i++) {
+        let isDuplicate = false;
+
+        for (let j = 0; j < filteredPoints.length; j++) {
+            if (getSqDist(points[i], filteredPoints[j]) < sqMinDistance) {
+                isDuplicate = true;
+                break;
+            }
         }
-      }
-      return index;
-    };
-  
-    const simplify = (points, first, last) => {
-      if (last - first < 2) return [points[first]]; // 📌 Minimum 3 pont kell
-  
-      let index = findFurthest(points, first, last);
-      if (index !== -1 && getSqDist(points[index], points[first]) > sqTolerance) {
-        return [...simplify(points, first, index), points[index], ...simplify(points, index, last)];
-      }
-      return [points[first]];
-    };
-    
-    let filteredPoints = removeClosePoints(points);
-    let simplified = [...simplify(filteredPoints, 0, filteredPoints.length - 1), filteredPoints[filteredPoints.length - 1]];
-    //Ha a poligon túl egyszerűsödött, visszaállítjuk az eredetit
-    if (simplified.length < 3) {
-      console.warn("Poligon túl egyszerűsítve, visszaállítás eredeti pontra");
-      return points;
+
+        if (!isDuplicate) {
+            filteredPoints.push(points[i]);
+        }
     }
-    return simplified;
-  };
+
+    // Egyenes vonalon lévő felesleges pontok eltávolítása
+    const removeCollinearPoints = (points) => {
+        if (points.length < 3) return points;
+
+        const isCollinear = (p1, p2, p3) => {
+            return Math.abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) < 1e-10;
+        };
+
+        let result = [points[0]]; // Az első pontot mindig megtartjuk
+
+        for (let i = 1; i < points.length - 1; i++) {
+            if (!isCollinear(points[i - 1], points[i], points[i + 1])) {
+                result.push(points[i]); // Csak akkor tartjuk meg, ha nem egy egyenes része
+            }
+        }
+
+        result.push(points[points.length - 1]); // Az utolsó pontot mindig megtartjuk
+        return result;
+    };
+
+    // Egyenes vonalakat egyszerűsítjük
+    filteredPoints = removeCollinearPoints(filteredPoints);
+
+    // Ha az utolsó pont nem egyezik meg az elsővel, biztosítjuk a zártságot
+    if (filteredPoints.length > 2 &&
+        (filteredPoints[0][0] !== filteredPoints[filteredPoints.length - 1][0] ||
+         filteredPoints[0][1] !== filteredPoints[filteredPoints.length - 1][1])) {
+        filteredPoints.push([...filteredPoints[0]]);
+    }
+
+    return filteredPoints;
+};
+
+
 
   const handleSave = async () => {
     if (!selectedData || !selectedData.category) {
@@ -402,6 +384,7 @@ const AdminMap = () => {
         name: selectedData.name || "",
         shortName: selectedData.shortName || null,
         group: selectedData.group || null,
+        numberOfFloors: selectedData.numberOfFloors || 1,
         coordinates: selectedData.coordinates || [],
       };
     } else if (selectedData.category === "floor") {
@@ -584,6 +567,14 @@ const AdminMap = () => {
                   <input type="text" value={selectedData.shortName || ""} onChange={(e) => setSelectedData({ ...selectedData, shortName: e.target.value })} />
                   <label>Csoport:</label>
                   <input type="text" value={selectedData.group || ""} onChange={(e) => setSelectedData({ ...selectedData, group: e.target.value })} />
+                  <label>Szintek száma:</label>
+                  {<input
+                    type="number"
+                    value={selectedData.numberOfFloors || ""}
+                    onChange={(e) =>
+                      setSelectedData({ ...selectedData, numberOfFloors: e.target.value !== "" ? parseInt(e.target.value, 10) : null })
+                    }
+                  />}
                  </>
                 )}
             </div>
