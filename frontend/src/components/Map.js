@@ -63,6 +63,11 @@ const MapComponent = () => {
               elementType: "labels",
               stylers: [{ visibility: "off" }],
             },
+            {
+              featureType: "landscape",
+              elementType: "labels",
+              stylers: [{ visibility: "off" }],
+            },
           ],
         });
 
@@ -112,18 +117,17 @@ const MapComponent = () => {
         const infoWindow = new window.google.maps.InfoWindow();
 
         map.current.data.addListener("mouseover", (event) => {
-          const category = event.feature.getProperty("category") || "Ismeretlen";
+          //const category = event.feature.getProperty("category") || "Ismeretlen";
           let displayText = event.feature.getProperty("name") || "Nincs név"; // Alapértelmezett
 
           // Ha az objektum egy "floor", akkor a "number" értéket használjuk
-          if (category === "floor") {
+          /*if (category === "floor") {
             displayText = `Emelet: ${event.feature.getProperty("number")}`;
-          }
+          }*/
 
           const content = `
             <div class="custom-info-window">
               <div class="info-title">${displayText}</div>
-              <div class="info-category">${category}</div>
             </div>
           `;
 
@@ -235,7 +239,7 @@ const MapComponent = () => {
 
   const fetchBuildingFloors = async (buildingName) => {
     try {
-        const response = await fetch(`http://localhost:5000/api/floors?building=${buildingName}`);
+        const response = await fetch(`http://localhost:5000/api/floors?building=${buildingName}`); //itt van a hiba
         const data = await response.json();
 
         // 🔥 Átalakítjuk a GeoJSON features tömböt egyszerűbb objektum tömbbé
@@ -356,14 +360,16 @@ const MapComponent = () => {
   
   const highlightRoom = async(room) => {
     if (!map.current) return;
-    
-    const buildingName = room.floor.building.name;
-    console.log("Épület neve:", buildingName);
 
+    
+    const buildingName = room.floor.building.name; 
+    //console.log("Épület neve:", buildingName);
+    
     const floors = await fetchBuildingFloors(buildingName);
+    console.log(floors)
 
     setIsBuildingView(true);
-    setSelectedBuilding(room.floor.building.name);
+    setSelectedBuilding(room.floor.building.name); 
     setBuildingFloors(floors);
     setCurrentFloor(room.floor.number);
     setHighlightedRoom(room);

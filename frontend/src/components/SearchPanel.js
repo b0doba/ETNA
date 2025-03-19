@@ -65,6 +65,7 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
         <button className="category-btn" onClick={() => onGroupSelect("Kollégiumok")}>Kollégiumok</button>
         <button className="category-btn" onClick={() => onGroupSelect("Sportcsarnokok")}>Sportcsarnokok</button>
         <button className="category-btn" onClick={() => onGroupSelect("Parkolók")}>Parkolók</button>
+        <button className="category-btn" onClick={() => onGroupSelect("\"Tanulmányi épületek\"")}>Tanulmányi Épületek</button>
         <button className="category-btn">Rendezvények</button>
       </div>
       {/* Keresőpanel */}

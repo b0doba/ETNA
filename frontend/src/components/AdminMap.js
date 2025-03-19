@@ -31,6 +31,11 @@ const AdminMap = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const refreshMap = () => {
+    console.log("🔄 Térkép frissítése...");
+    setMapRefreshTrigger((prev) => prev + 1);
+  };
+
   useEffect(() => {
     const initMap = async () => {
       try {
@@ -76,11 +81,18 @@ const AdminMap = () => {
           streetViewControl: false,
           mapTypeControl: false,
           fullscreenControl: false,
-          styles: [{
-            featureType: "all",
-            elementType: "labels",
-            stylers: [{ visibility: "off" }]
-          }],
+          styles: [
+            {
+              featureType: "all",
+              elementType: "labels",
+              stylers: [{ visibility: "off" }]
+            },
+            {
+              featureType: "landscape",
+              elementType: "labels",
+              stylers: [{ visibility: "off" }],
+            },
+          ],
         });
 
         // Drawing Manager inicializálása
@@ -140,7 +152,7 @@ const AdminMap = () => {
 
               if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
                 coordinates.push([...firstPoint]); // Ha nem azonos, hozzáadjuk az elsőt a végére
-                console.log("🔄 Poligon lezárva az első és utolsó pont összeillesztésével.");
+                console.log("Poligon lezárva az első és utolsó pont összeillesztésével.");
               }
             
               console.log("📍 Új alakzat koordinátái:", coordinates);
@@ -150,12 +162,12 @@ const AdminMap = () => {
                 return;
               }
 
-              // 🔄 Beállítjuk az adatokat, most már a koordinátákkal együtt!
+              // Beállítjuk az adatokat, most már a koordinátákkal együtt!
               setSelectedData({
-                coordinates: coordinates, // ✅ A megfelelő koordináták átadása
+                coordinates: coordinates, // A megfelelő koordináták átadása
               });
             
-              //console.log("🔴 Rajzolás mód KI: visszaállt a kézi mozgatás.");
+              //console.log("Rajzolás mód KI: visszaállt a kézi mozgatás.");
             });
             
             //Kattintáskor az adott objektumot kiválasztjuk
@@ -426,6 +438,7 @@ const AdminMap = () => {
       console.log("✅ Sikeres válasz az API-tól:", data);
       alert("✅ Mentés sikeres!");
       setSelectedData(null);
+      refreshMap();
     } catch (error) {
       console.error("🚨 Hiba a mentés során:", error);
       alert("❌ Nem sikerült menteni az adatokat.");
@@ -661,7 +674,7 @@ const AdminMap = () => {
             </div>
           </div>
         )}
-      <DeleteItem/>
+      <DeleteItem refreshMap={refreshMap} />
       <div ref={mapContainer} className="admin-map-container"/>
     </div>
   );

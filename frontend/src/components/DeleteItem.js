@@ -4,7 +4,7 @@ import "../AdminLook.css";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
-const DeleteItem = () => {
+const DeleteItem = ({refreshMap }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [category, setCategory] = useState("");
   const [items, setItems] = useState([]);
@@ -21,10 +21,25 @@ const DeleteItem = () => {
     fetch(apiUrl)
       .then((res) => res.json())
       .then((data) => {
-        const formattedItems = data.features.map((feature) => ({
-          id: feature.properties.id,
-          name: feature.properties.name || feature.properties.number,
-        }));
+        const formattedItems = data.features.map((feature) => {
+          const baseItem = {
+            id: feature.properties.id,
+            name: feature.properties.name || feature.properties.number, // Név vagy szám
+          };
+
+          // Ha az elem egy emelet, csatoljuk az épület nevét
+          if (category === "floor" && feature.properties.building) {
+            baseItem.name += ` (${feature.properties.building})`;
+          }
+
+          // Ha az elem egy terem, csatoljuk az épület nevét
+          if (category === "room" && feature.properties.building) {
+            baseItem.name += ` (${feature.properties.building})`;
+          }
+
+          return baseItem;
+        });
+
         setItems(formattedItems);
       })
       .catch((error) => console.error("❌ Hiba az adatok lekérésekor:", error));
@@ -54,6 +69,7 @@ const DeleteItem = () => {
       setItems(items.filter((item) => item.id !== selectedItem));
       setSelectedItem("");
       setIsVisible(false); 
+      refreshMap();
     } catch (error) {
       console.error("🚨 Törlési hiba:", error);
       alert("❌ Nem sikerült törölni az elemet.");

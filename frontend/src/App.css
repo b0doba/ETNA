@@ -180,9 +180,10 @@ html, body {
   font-family: Arial, sans-serif;
   background-color: white;
   border-radius: 8px;
-  padding: 10px;
-  min-width: 100px;
   text-align: center;
+  display: inline-block;
+  margin-left: 20px;
+  white-space: nowrap;
 }
 
 .info-title {
