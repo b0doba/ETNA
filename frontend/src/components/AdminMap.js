@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import loadGoogleMapsScript from "./loadGoogleMap";
 import "../AdminLook.css";
+import ObjectFilter from "./ObjectFilter";
 import DeleteItem from "./DeleteItem";
 
 const API_BASE_URL = "http://localhost:5000/api";
@@ -59,14 +60,6 @@ const AdminMap = () => {
           buildingId: feature.properties.buildingId
         })));
         
-        /*setRooms(rooms.features.map(feature => ({
-          id: feature.properties.id,
-          name: feature.properties.number,
-          group: feature.properties.group,
-          floor: feature.properties.floor,
-          floorId: feature.properties.floorId
-        })));*/
-
         if (!window.google || !window.google.maps) {
           throw new Error("Google Maps API nem érhető el.");
         }
@@ -123,6 +116,9 @@ const AdminMap = () => {
 
         // Létező épületek és szobák betöltése és szerkeszthetővé tétele
         const addGeoJSONToMap = (geoJson, color, type) => {
+
+        
+
           geoJson.features.forEach((feature) => {
             const coordinates = feature.geometry.coordinates[0].map(([lng, lat]) => ({ lat, lng }));
             const polygon = new window.google.maps.Polygon({
@@ -135,7 +131,7 @@ const AdminMap = () => {
             });
 
             polygon.setMap(map.current);
-            
+
             window.google.maps.event.addListener(drawingManager.current, "overlaycomplete", (event) => {
               console.log("✅ Alakzat létrehozva!");
             
@@ -166,8 +162,6 @@ const AdminMap = () => {
               setSelectedData({
                 coordinates: coordinates, // A megfelelő koordináták átadása
               });
-            
-              //console.log("Rajzolás mód KI: visszaállt a kézi mozgatás.");
             });
             
             //Kattintáskor az adott objektumot kiválasztjuk
@@ -235,7 +229,7 @@ const AdminMap = () => {
               polygon.getPath().addListener("set_at", updateHighlightEdges); // Ha meglévő pontot módosítanak
               polygon.getPath().addListener("insert_at", updateHighlightEdges); // Ha új pontot adnak hozzá
               polygon.addListener("dragend", updateHighlightEdges); // Ha az egész poligont mozgatják
-          
+              
               // Azonnali kiemelés
               updateHighlightEdges();
             });
@@ -245,6 +239,7 @@ const AdminMap = () => {
         addGeoJSONToMap(buildings, "blue", "building");
         addGeoJSONToMap(floors, "green", "floor");
         addGeoJSONToMap(rooms, "red", "room");
+
 
         const drawGrid = () => {
           if (!map.current) return;
@@ -301,7 +296,6 @@ const AdminMap = () => {
 
         drawGrid();
         map.current.addListener("idle", drawGrid);
-
         setLoading(false);
       } catch (err) {
         console.error(err);
@@ -373,8 +367,6 @@ const AdminMap = () => {
 
     return filteredPoints;
 };
-
-
 
   const handleSave = async () => {
     if (!selectedData || !selectedData.category) {
@@ -674,6 +666,7 @@ const AdminMap = () => {
             </div>
           </div>
         )}
+      <ObjectFilter buildings={buildings} floors={floors} />
       <DeleteItem refreshMap={refreshMap} />
       <div ref={mapContainer} className="admin-map-container"/>
     </div>

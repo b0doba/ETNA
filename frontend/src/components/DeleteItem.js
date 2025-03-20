@@ -78,7 +78,6 @@ const DeleteItem = ({refreshMap }) => {
 
   return (
     <div>
-      {/* Szemetes ikon a törlőpanel megjelenítéséhez */}
       <button className="delete-icon-btn" onClick={() => setIsVisible(!isVisible)}>
         <img src={tarshIcon} alt="Törlés" />
       </button>
