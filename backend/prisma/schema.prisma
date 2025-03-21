@@ -11,19 +11,21 @@ model Building {
   id          Int      @id @default(autoincrement())
   name        String
   shortName   String?
-  coordinates Json?     // Az épület alakját (pl. poligon koordináták) tároljuk
+  coordinates Json?     
   group       Json?
   floors      Floor[]
+  nodes      Node[]
 }
 
 model Floor {
   id          Int      @id @default(autoincrement())
   buildingId  Int
   number      Int
-  height      Float
+  height      Float //majd kiszedem, és épületbe meg szobákba teszek a 3Dhez
   coordinates Json?
   rooms       Room[]
   building    Building @relation(fields: [buildingId], references: [id])
+  nodes      Node[]
 }
 
 model Room {
@@ -31,6 +33,35 @@ model Room {
   floorId     Int
   name        String
   type        String
-  coordinates Json?    // A szoba alakzatának tárolása opcionálisan
+  coordinates Json?    
   floor       Floor    @relation(fields: [floorId], references: [id])
 }
+
+model Node {
+  id         Int     @id @default(autoincrement())
+  name       String
+  type       String  // "room", "hallway", "stair", "elevator", "door"
+  floorId    Int?
+  buildingId Int?
+  coordinates Json?
+  iconUrl    String?
+
+  floor      Floor?   @relation(fields: [floorId], references: [id])
+  building   Building? @relation(fields: [buildingId], references: [id])
+
+  edgesFrom  Edge[]  @relation("NodeEdgesFrom")
+  edgesTo    Edge[]  @relation("NodeEdgesTo")
+}
+
+model Edge {
+  id         Int    @id @default(autoincrement())
+  fromNodeId Int
+  toNodeId   Int
+  distance   Float  // Méterben vagy relatív idő alapján
+  type       String // "door", "hallway", "stair", "elevator", "outdoor"
+  iconUrl    String?
+
+  fromNode   Node   @relation("NodeEdgesFrom", fields: [fromNodeId], references: [id])
+  toNode     Node   @relation("NodeEdgesTo", fields: [toNodeId], references: [id])
+}
+

@@ -44,14 +44,31 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
   }, [searchQuery, startPoint, destination, activeInput]);
   
   // Keresési funkció az útvonalhoz
-  const handleRouteSearch = () => {
-    if (startPoint && destination) {
-      console.log("Útvonaltervezés innen:", startPoint, "ide:", destination);
-      // Itt lehet majd API hívást csinálni vagy útvonalat megjeleníteni
-    } else {
+  const handleRouteSearch = async () => {
+    if (!startPoint || !destination) {
       alert("Kérlek add meg mindkét helyet az útvonaltervezéshez!");
+      return;
+    }
+  
+    try {
+      console.log("🔵 Útvonaltervezés:", startPoint, "->", destination);
+  
+      const response = await fetch(`http://localhost:5000/api/path?fromRoom=${startPoint}&toRoom=${destination}`);
+      const data = await response.json();
+  
+      if (!data || !data.waypoints) {
+        alert("Nincs elérhető útvonal!");
+        return;
+      }
+  
+      // 🔥 Az útvonal megjelenítése a térképen
+      onRouteSearch(data.waypoints);
+    } catch (error) {
+      console.error("🚨 Hiba az útvonaltervezés során:", error);
+      alert("Hiba történt az útvonal lekérésekor.");
     }
   };
+  
 
   const handleSearch = () => {
     onSearch(searchQuery);
@@ -100,18 +117,45 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
         </div>
       ) : (
         <div className="route-inputs">
-          <input
-            type="text"
-            placeholder="Kiindulópont"
-            value={startPoint}
-            onChange={(e) => setStartPoint(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Úticél"
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-          />
+            {/* Kiindulópont autocomplete */}
+            <div className="autocomplete">
+              <input
+                type="text"
+                placeholder="Kiindulópont"
+                value={startPoint}
+                onChange={(e) => setStartPoint(e.target.value)}
+                onFocus={() => setActiveInput("start")}
+              />
+              {suggestions.length > 0 && activeInput === "start" && (
+                <ul className="autocomplete-list">
+                  {suggestions.map((item, index) => (
+                    <li key={index} onClick={() => { setStartPoint(item.name); setSuggestions([]); }}>
+                      {item.name} ({item.type})
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Úticél autocomplete */}
+            <div className="autocomplete">
+              <input
+                type="text"
+                placeholder="Úticél"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                onFocus={() => setActiveInput("destination")}
+              />
+              {suggestions.length > 0 && activeInput === "destination" && (
+                <ul className="autocomplete-list">
+                  {suggestions.map((item, index) => (
+                    <li key={index} onClick={() => { setDestination(item.name); setSuggestions([]); }}>
+                      {item.name} ({item.type})
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           <button className="route-btn search-route-btn" onClick={handleRouteSearch}>
             Útvonaltervezés
           </button>
