@@ -25,6 +25,7 @@ const MapComponent = () => {
   const [highlightedRoom, setHighlightedRoom] = useState(null);
   const [startLocation, setStartLocation] = useState(null);
   const [endLocation, setEndLocation] = useState(null);
+  const [nodes, setNodes] = useState([]);
   const [mapZoom, setMapZoom] = useState(18);
   const [mapCenter, setMapCenter] = useState({ lat: 47.693344, lng: 17.627529 });
   const [loading, setLoading] = useState(true);
@@ -42,6 +43,8 @@ const MapComponent = () => {
           fetchGeoJSON("http://localhost:5000/api/rooms"),
           fetchGeoJSON("http://localhost:5000/api/floors")
         ]);
+
+        const nodesResponse = await fetch("http://localhost:5000/api/nodes");
 
         if (!window.google || !window.google.maps) {
           throw new Error("Google Maps API nem érhető el.");
@@ -116,6 +119,8 @@ const MapComponent = () => {
         addGeoJSONToMap(buildings, "building");
         addGeoJSONToMap(rooms,"room");
         addGeoJSONToMap(floors, "floor");
+        const nodesData = await nodesResponse.json();
+        setNodes(nodesData);
 
         const infoWindow = new window.google.maps.InfoWindow();
 
@@ -222,6 +227,43 @@ const MapComponent = () => {
           }          
         });
 
+        nodesData.forEach((node) => {
+          if (node.coordinates) {
+            const [lng, lat] = JSON.parse(node.coordinates)[0];
+        
+            const iconDiv = document.createElement("div");
+            iconDiv.style.position = "absolute";
+            iconDiv.style.width = "24px";
+            iconDiv.style.height = "24px";
+            iconDiv.style.opacity = "0.4";
+        
+            const img = document.createElement("img");
+            img.src = `/assets/icons/${node.iconUrl}`; 
+            img.style.width = "12px";
+            img.style.height = "12px";
+            iconDiv.appendChild(img);
+        
+            const overlay = new window.google.maps.OverlayView();
+            overlay.onAdd = function () {
+              const panes = this.getPanes();
+              panes.overlayImage.appendChild(iconDiv);
+            };
+            overlay.draw = function () {
+              const projection = this.getProjection();
+              const position = projection.fromLatLngToDivPixel(new window.google.maps.LatLng(lat, lng));
+              iconDiv.style.left = position.x + "px";
+              iconDiv.style.top = position.y + "px";
+            };
+            overlay.onRemove = function () {
+              if (iconDiv.parentNode) {
+                iconDiv.parentNode.removeChild(iconDiv);
+              }
+            };
+        
+            overlay.setMap(map.current);
+          }
+        });
+
         
         console.log("Térkép sikeresen inicializálva!");
         setLoading(false);
@@ -230,6 +272,7 @@ const MapComponent = () => {
         setError(err.message);
       }
     };
+    
 
     initMap();
 
@@ -253,6 +296,8 @@ const MapComponent = () => {
             building: feature.properties.building,
             coordinates: JSON.stringify(feature.geometry.coordinates), // Eltároljuk a koordinátákat is!
         }));
+
+        
 
         return floors; // Visszaadjuk a megfelelő struktúrát
     } catch (error) {
@@ -415,97 +460,39 @@ const MapComponent = () => {
     });
   };
 
-  const handleNavigate = (from, to) => {
-    setStartLocation(from);
-    setEndLocation(to);
-  };
-
-  const handleRouteSearch = async (start, destination) => {
-    if (!start || !destination) {
-      alert("Mindkét helyet meg kell adnod az útvonaltervezéshez!");
-      return;
-    }
-  
+  const handleRouteSearch = async (startName, endName) => { //működik
     try {
-      // Keresés a kezdő- és végpont szobához
-      const responseStart = await fetch(`http://localhost:5000/api/search?q=${start}`);
-      const responseEnd = await fetch(`http://localhost:5000/api/search?q=${destination}`);
+      const [startRes, endRes] = await Promise.all([
+        fetch(`http://localhost:5000/api/search?q=${startName}`),
+        fetch(`http://localhost:5000/api/search?q=${endName}`)
+      ]);
   
-      const dataStart = await responseStart.json();
-      const dataEnd = await responseEnd.json();
-  
-      if (dataStart.rooms.length > 0 && dataEnd.rooms.length > 0) {
-        const startRoom = dataStart.rooms[0];
-        const endRoom = dataEnd.rooms[0];
+      const dataStart = await startRes.json();
+      const dataEnd = await endRes.json();
 
-        // Beltéri vagy épületközi útvonal?
-        if (startRoom.floor.building.id === endRoom.floor.building.id) {
-          // Beltéri útvonal keresése
-          const pathResponse = await fetch(`http://localhost:5000/api/path?fromRoom=${startRoom.id}&toRoom=${endRoom.id}`);
-          const pathData = await pathResponse.json();
-  
-          if (pathData.waypoints) {
-            drawPathOnMap(pathData.waypoints);
-          } else {
-            alert("Nincs elérhető beltéri útvonal!");
-          }
-        } else {
-          // Két épület közötti útvonal keresése
-          const connectionResponse = await fetch(
-            `http://localhost:5000/api/connection?fromBuilding=${startRoom.floor.building.id}&toBuilding=${endRoom.floor.building.id}&fromFloor=${startRoom.floor.number}&toFloor=${endRoom.floor.number}`
-          );
-          const connectionData = await connectionResponse.json();
-  
-          if (connectionData.waypoints) {
-            drawPathOnMap(connectionData.waypoints);
-          } else {
-            alert("Nincs kapcsolat az épületek között!");
-          }
-        }
+      let startNode = dataStart.nodes?.[0] ??
+      (dataStart.buildings?.[0] &&
+        nodes.find(n => n.buildingId === dataStart.buildings[0].id));
 
-        // Épület nézet aktiválása és szobák kiemelése
-        setIsBuildingView(true);
-        highlightRoom(startRoom);
-        highlightRoom(endRoom);
+      let endNode = dataEnd.nodes?.[0] ??
+        (dataEnd.buildings?.[0] &&
+          nodes.find(n => n.buildingId === dataEnd.buildings[0].id));
+
   
-        // Útvonal kezdő- és végpontját térképre állítjuk
-        handleNavigate(
-          { lat: JSON.parse(startRoom.coordinates)[0][1], lng: JSON.parse(startRoom.coordinates)[0][0] },
-          { lat: JSON.parse(endRoom.coordinates)[0][1], lng: JSON.parse(endRoom.coordinates)[0][0] }
-        );
-  
-      } else {
-        alert("Nincs elegendő találat az útvonaltervezéshez!");
+      if (!startNode || !endNode) {
+        alert("Nem található megfelelő kezdő vagy célpont.");
+        return;
       }
-    } catch (error) {
-      console.error("🚨 Hiba az útvonaltervezés során:", error);
+  
+      // Állítsuk be a NavigationComponent-hez szükséges értékeket
+      setStartLocation({ id: startNode.id, coordinates: startNode.coordinates });
+      setEndLocation({ id: endNode.id, coordinates: endNode.coordinates });
+  
+    } catch (err) {
+      console.error("🛑 Hiba az útvonalhoz szükséges node-ok lekérésénél:", err);
+      alert("Nem sikerült betölteni az útvonalat.");
     }
   };
-
-
-  const drawPathOnMap = (waypoints) => {
-    if (!map.current) return;
-  
-    // Előző útvonal törlése
-    if (window.currentPath) {
-      window.currentPath.setMap(null);
-    }
-  
-    const pathCoordinates = waypoints.map(([lng, lat]) => ({ lat, lng }));
-  
-    window.currentPath = new window.google.maps.Polyline({
-      path: pathCoordinates,
-      geodesic: true,
-      strokeColor: "#FF0000",
-      strokeOpacity: 1.0,
-      strokeWeight: 3,
-    });
-  
-    window.currentPath.setMap(map.current);
-  };
-  
-  
-  
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>

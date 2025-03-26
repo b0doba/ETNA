@@ -115,7 +115,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 100%; /* Teljes szélesség */
+  width: 90%;
 }
 
 .route-inputs input {
@@ -123,8 +123,8 @@ html, body {
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 14px;
-  width: 90%; /* Teljes szélesség */
-  height: 27px;
+  width: 80%;
+  height: 22px;
 }
 
 .route-inputs .route-btn {
@@ -132,7 +132,7 @@ html, body {
   background: #6b727b;
   position: center;
   color: white;
-  width: 95%;
+  width: 108%;
   font-size: 14px;
 }
 

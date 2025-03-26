@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from "react";
-import searchIcon from "../assets/icons/arrow.svg";
-import routeIcon from "../assets/icons/pitch.svg";
 import "../App.css";
 
 const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
@@ -10,6 +8,8 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
   const [destination, setDestination] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [activeInput, setActiveInput] = useState("search");
+  const searchIcon = "/assets/icons/arrow.svg";
+  const routeIcon =  "/assets/icons/pitch.svg";
 
   useEffect(() => {
     const fetchSuggestions = async (query) => {
@@ -44,30 +44,16 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
   }, [searchQuery, startPoint, destination, activeInput]);
   
   // Keresési funkció az útvonalhoz
-  const handleRouteSearch = async () => {
+  const handleRouteSearch = () => {
     if (!startPoint || !destination) {
       alert("Kérlek add meg mindkét helyet az útvonaltervezéshez!");
       return;
     }
-  
-    try {
-      console.log("🔵 Útvonaltervezés:", startPoint, "->", destination);
-  
-      const response = await fetch(`http://localhost:5000/api/path?fromRoom=${startPoint}&toRoom=${destination}`);
-      const data = await response.json();
-  
-      if (!data || !data.waypoints) {
-        alert("Nincs elérhető útvonal!");
-        return;
-      }
-  
-      // 🔥 Az útvonal megjelenítése a térképen
-      onRouteSearch(data.waypoints);
-    } catch (error) {
-      console.error("🚨 Hiba az útvonaltervezés során:", error);
-      alert("Hiba történt az útvonal lekérésekor.");
-    }
+    console.log("kezdőpont: ", startPoint, "uticel: ",destination)
+    
+    onRouteSearch(startPoint, destination);
   };
+  
   
 
   const handleSearch = () => {
@@ -117,9 +103,8 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
         </div>
       ) : (
         <div className="route-inputs">
-            {/* Kiindulópont autocomplete */}
             <div className="autocomplete">
-              <input
+              <input className="route-input"
                 type="text"
                 placeholder="Kiindulópont"
                 value={startPoint}
@@ -136,10 +121,8 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
                 </ul>
               )}
             </div>
-
-            {/* Úticél autocomplete */}
             <div className="autocomplete">
-              <input
+              <input className="route-input"
                 type="text"
                 placeholder="Úticél"
                 value={destination}

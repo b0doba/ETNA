@@ -15,20 +15,10 @@ async function getNodes(req, res) {
 // 🔹 Új csomópont létrehozása
 async function createNode(req, res) {
   try {
-    const { name, type, floorId, buildingId, latitude, longitude, iconUrl } = req.body;
+    const { name, type, floorId, buildingId, coordinates, iconUrl } = req.body;
 
-    if (!name || !type || !latitude || !longitude) {
+    if (!name || !type || !coordinates) {
       return res.status(400).json({ error: "Hiányzó adatok!" });
-    }
-
-    let parsedCoordinates;
-    try {
-      parsedCoordinates = JSON.parse(coordinates);
-      if (!Array.isArray(parsedCoordinates) || !Array.isArray(parsedCoordinates[0])) {
-        throw new Error("Hibás koordináta formátum!");
-      }
-    } catch (error) {
-      return res.status(400).json({ error: "A koordináták nem érvényes JSON formátumban vannak!" });
     }
 
     const newNode = await prisma.node.create({
@@ -37,7 +27,7 @@ async function createNode(req, res) {
         type,
         floorId,
         buildingId,
-        coordinates: JSON.stringify(parsedCoordinates),
+        coordinates: coordinates ? JSON.stringify(coordinates) : [],
         iconUrl,
       },
     });

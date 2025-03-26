@@ -13,7 +13,7 @@ async function search(req, res) {
         where: {
           OR: [
             { name: { contains: query} },
-            { shortName: { contains: query } }
+            { shortName: { contains: query } },
           ]
         }
       });
@@ -23,8 +23,14 @@ async function search(req, res) {
         where: { name: { contains: query } },
         include: { floor: { include: { building: true } } },
       });
+
+      const nodes = await prisma.node.findMany({
+        where: {
+          name: { contains: query }
+        }
+      });
   
-      res.json({ buildings, rooms });
+      res.json({ buildings, rooms, nodes });
     } catch (error) {
       console.error("🚨 Hiba a keresés során:", error);
       res.status(500).json({ error: "Hiba történt a keresés során." });

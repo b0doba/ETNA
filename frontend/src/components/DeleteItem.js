@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import tarshIcon from "../assets/icons/waste-basket.svg";
 import "../AdminLook.css";
 
 const API_BASE_URL = "http://localhost:5000/api";
@@ -8,6 +7,7 @@ const DeleteItem = ({refreshMap }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [category, setCategory] = useState("");
   const [items, setItems] = useState([]);
+  const tarshIcon = "assets/icons/waste-basket.svg";
   const [selectedItem, setSelectedItem] = useState("");
 
   useEffect(() => {

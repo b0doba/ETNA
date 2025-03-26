@@ -22,7 +22,7 @@ async function getBuildings(req, res) {
             name: building.name,
             shortName: building.shortName ?? null,
             group: building.group ?? null,
-            coordinates: building.coordinates ? JSON.parse(building.coordinates) : null, 
+            coordinates: building.coordinates ? JSON.parse(building.coordinates) : null,
             category: "building",
           },
         })),
