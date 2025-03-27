@@ -77,14 +77,38 @@ async function getEdges(req, res) {
   }
 }
 
+
+function calculateDistance(coord1, coord2) {
+  const R = 6371e3;
+  const toRad = deg => (deg * Math.PI) / 180;
+  const φ1 = toRad(coord1[1]), φ2 = toRad(coord2[1]);
+  const Δφ = toRad(coord2[1] - coord1[1]);
+  const Δλ = toRad(coord2[0] - coord1[0]);
+
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 // 🔹 Új él létrehozása
 async function createEdge(req, res) {
   try {
-    const { fromNodeId, toNodeId, distance, type, iconUrl } = req.body;
+    const { fromNodeId, toNodeId, type, iconUrl } = req.body;
 
-    if (!fromNodeId || !toNodeId || !distance || !type) {
+    if (!fromNodeId || !toNodeId || !type) {
       return res.status(400).json({ error: "Hiányzó adatok!" });
     }
+
+    const fromNode = await prisma.node.findUnique({ where: { id: fromNodeId } });
+    const toNode = await prisma.node.findUnique({ where: { id: toNodeId } });
+
+    if (!fromNode || !toNode) {
+      return res.status(404).json({ error: "Nem található az egyik node." });
+    }
+
+    const coord1 = JSON.parse(fromNode.coordinates)[0];
+    const coord2 = JSON.parse(toNode.coordinates)[0];
+    const distance = calculateDistance(coord1, coord2);
 
     const newEdge = await prisma.edge.create({
       data: {

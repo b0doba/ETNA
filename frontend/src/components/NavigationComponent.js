@@ -1,8 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
-const NavigationComponent = ({ start, end, map }) => {
+const NavigationComponent = ({ start, end, map, clear }) => {
+  const polylineRef = useRef(null);
+
+  useEffect(() => {
+    if (clear && polylineRef.current) {
+      polylineRef.current.setMap(null);
+      polylineRef.current = null;
+    }
+  }, [clear]);
+
   useEffect(() => {
     const fetchAndDrawPath = async () => {
+      
       if (!start || !end || !map) return;
 
       try {
@@ -10,6 +20,7 @@ const NavigationComponent = ({ start, end, map }) => {
           fetch("http://localhost:5000/api/nodes"),
           fetch("http://localhost:5000/api/edges"),
         ]);
+
 
         const nodes = await nodesRes.json();
         const edges = await edgesRes.json();
@@ -28,6 +39,10 @@ const NavigationComponent = ({ start, end, map }) => {
           return { lat, lng };
         });
 
+        if (polylineRef.current) {
+          polylineRef.current.setMap(null);
+        }
+
         const polyline = new window.google.maps.Polyline({
           path: pathCoordinates,
           geodesic: true,
@@ -37,6 +52,8 @@ const NavigationComponent = ({ start, end, map }) => {
         });
 
         polyline.setMap(map);
+        polylineRef.current = polyline;
+
 
       } catch (error) {
         console.error("❌ Hiba az útvonal kiszámításakor:", error);
@@ -44,7 +61,7 @@ const NavigationComponent = ({ start, end, map }) => {
     };
 
     fetchAndDrawPath();
-  }, [start, end, map]);
+  }, [start, end, map, clear]);
 
   return null;
 };

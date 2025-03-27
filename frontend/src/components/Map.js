@@ -28,6 +28,7 @@ const MapComponent = () => {
   const [nodes, setNodes] = useState([]);
   const [mapZoom, setMapZoom] = useState(18);
   const [mapCenter, setMapCenter] = useState({ lat: 47.693344, lng: 17.627529 });
+  const [clearRoute, setClearRoute] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const handleGroupSelect = (group) => {
@@ -487,6 +488,7 @@ const MapComponent = () => {
       // Állítsuk be a NavigationComponent-hez szükséges értékeket
       setStartLocation({ id: startNode.id, coordinates: startNode.coordinates });
       setEndLocation({ id: endNode.id, coordinates: endNode.coordinates });
+      setClearRoute(false);
   
     } catch (err) {
       console.error("🛑 Hiba az útvonalhoz szükséges node-ok lekérésénél:", err);
@@ -502,8 +504,13 @@ const MapComponent = () => {
         highlightRoom={highlightRoom}
         onRouteSearch={handleRouteSearch}
         onGroupSelect={handleGroupSelect}
+        onCancelRoute={() => {
+          setStartLocation(null);
+          setEndLocation(null);
+          setClearRoute(true);
+        }}
       />
-      <NavigationComponent start={startLocation} end={endLocation} map={map.current} />
+      <NavigationComponent start={startLocation} end={endLocation} map={map.current} clear={clearRoute} />
       {loading && <p>Betöltés...</p>}
       {error && <p style={{ color: "red" }}>Hiba történt: {error}</p>}
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />

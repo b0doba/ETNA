@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "../App.css";
 
-const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
+const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute  }) => {
   const [showRouteInputs, setShowRouteInputs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [startPoint, setStartPoint] = useState("");
@@ -49,7 +49,7 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
       alert("Kérlek add meg mindkét helyet az útvonaltervezéshez!");
       return;
     }
-    console.log("kezdőpont: ", startPoint, "uticel: ",destination)
+    console.log("Kezdőpont: ",startPoint, "Úticél: ",destination)
     
     onRouteSearch(startPoint, destination);
   };
@@ -142,7 +142,10 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect  }) => {
           <button className="route-btn search-route-btn" onClick={handleRouteSearch}>
             Útvonaltervezés
           </button>
-          <button className="route-btn" onClick={() => setShowRouteInputs(false)}>Vissza</button>
+          <button className="route-btn" onClick={() => {
+            setShowRouteInputs(false);
+            if (onCancelRoute) {onCancelRoute();}
+          }}>Vissza</button>
         </div>
       )}
       <p className="description">Írd le hova szeretnél menni!</p>
