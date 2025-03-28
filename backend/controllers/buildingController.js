@@ -108,11 +108,13 @@ async function getBuildings(req, res) {
           coordinates: coordinates ? JSON.stringify(coordinates) : [],
         },
       });
+
+      let floorsData = [];
   
       if (Number.isInteger(numberOfFloors) && numberOfFloors > 0) {
         const validFloorHeight = 3.0;
   
-        const floorsData = Array.from({ length: numberOfFloors  }, (_, index) => ({
+        floorsData = Array.from({ length: numberOfFloors  }, (_, index) => ({
           buildingId: newBuilding.id,
           number: index,
           height: validFloorHeight,

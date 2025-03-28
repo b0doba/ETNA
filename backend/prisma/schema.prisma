@@ -60,6 +60,7 @@ model Edge {
   distance   Float  // Méterben vagy relatív idő alapján
   type       String // "door", "hallway", "stair", "elevator", "outdoor"
   iconUrl    String?
+  waypoints  Json?
 
   fromNode   Node   @relation("NodeEdgesFrom", fields: [fromNodeId], references: [id])
   toNode     Node   @relation("NodeEdgesTo", fields: [toNodeId], references: [id])

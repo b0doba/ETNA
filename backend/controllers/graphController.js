@@ -117,6 +117,7 @@ async function createEdge(req, res) {
         distance,
         type,
         iconUrl,
+        waypoints: [coord1, coord2],
       },
     });
 
@@ -127,4 +128,53 @@ async function createEdge(req, res) {
   }
 }
 
-module.exports = { getNodes, createNode, deleteNode, getEdges, createEdge };
+async function updateEdge(req, res) {
+  try {
+    const { id } = req.params;
+    const { type, iconUrl, waypoints } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "Edge ID megadása kötelező!" });
+    }
+
+    const edge = await prisma.edge.findUnique({ where: { id: Number(id) } });
+    if (!edge) {
+      return res.status(404).json({ error: "Edge nem található!" });
+    }
+
+    const updatedEdge = await prisma.edge.update({
+      where: { id: Number(id) },
+      data: {
+        type,
+        iconUrl,
+        waypoints,
+      },
+    });
+
+    res.json({ success: true, edge: updatedEdge });
+  } catch (error) {
+    console.error("🚨 Hiba az él frissítésekor:", error);
+    res.status(500).json({ error: "Nem sikerült frissíteni az élt." });
+  }
+}
+
+async function deleteEdge(req, res) {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Edge ID megadása szükséges!" });
+    }
+
+    const deletedEdge = await prisma.edge.delete({
+      where: { id: Number(id) },
+    });
+
+    res.json({ success: true, message: "Edge törölve!", edge: deletedEdge });
+  } catch (error) {
+    console.error("🚨 Hiba az él törlésekor:", error);
+    res.status(500).json({ error: "Nem sikerült törölni az élt." });
+  }
+}
+
+module.exports = { getNodes, createNode, deleteNode, getEdges, createEdge, updateEdge, deleteEdge };

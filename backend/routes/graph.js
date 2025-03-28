@@ -1,5 +1,5 @@
 const express = require("express");
-const { getNodes, createNode, deleteNode, getEdges, createEdge } = require("../controllers/graphController");
+const { getNodes, createNode, deleteNode, getEdges, createEdge, updateEdge, deleteEdge } = require("../controllers/graphController");
 
 const router = express.Router();
 
@@ -9,5 +9,7 @@ router.delete("/nodes/:id", deleteNode);
 
 router.get("/edges", getEdges);
 router.post("/edges", createEdge);
+router.put("/edges/:id", updateEdge);
+router.delete("/edges/:id", deleteEdge);
 
 module.exports = router;
