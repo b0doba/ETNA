@@ -33,11 +33,24 @@ const NavigationComponent = ({ start, end, map, clear }) => {
           return;
         }
 
-        const pathCoordinates = shortestPath.map((nodeId) => {
-          const node = nodes.find((n) => n.id === nodeId);
-          const [lng, lat] = JSON.parse(node.coordinates)[0];
-          return { lat, lng };
-        });
+        const pathCoordinates = [];
+
+        for (let i = 0; i < shortestPath.length - 1; i++) {
+          const fromId = shortestPath[i];
+          const toId = shortestPath[i + 1];
+
+          const edge = edges.find(
+            (e) =>
+              (e.fromNodeId === fromId && e.toNodeId === toId) ||
+              (e.fromNodeId === toId && e.toNodeId === fromId)
+          );
+
+          if (edge && edge.waypoints) {
+            edge.waypoints.forEach(([lng, lat]) => {
+              pathCoordinates.push({ lat, lng });
+            });
+          }
+        }
 
         if (polylineRef.current) {
           polylineRef.current.setMap(null);

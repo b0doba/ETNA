@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from "react";
 import loadGoogleMapsScript from "./loadGoogleMap";
 import "../AdminLook.css";
 import ObjectFilter from "./ObjectFilter";
-import DeleteItem from "./DeleteItem";
+import AdminDeleteItem from "./AdminDeleteItem";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -27,6 +27,7 @@ const AdminMap = () => {
   const [mapRefreshTrigger, setMapRefreshTrigger] = useState(0);
   const [buildings, setBuildings] = useState([]);
   const [floors, setFloors] = useState([]);
+  //const [edges, setEdges] = useState([]);
   //const [rooms, setRooms] = useState([]);
   const newPolygon = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -41,10 +42,11 @@ const AdminMap = () => {
     const initMap = async () => {
       try {
         await loadGoogleMapsScript();
-        const [buildings,floors, rooms] = await Promise.all([
+        const [buildings,floors, rooms, edges] = await Promise.all([
           fetchGeoJSON(`${API_BASE_URL}/buildings`),
           fetchGeoJSON(`${API_BASE_URL}/floors`),
           fetchGeoJSON(`${API_BASE_URL}/rooms`),
+          fetchGeoJSON(`${API_BASE_URL}/edges`),
         ]);
 
         setBuildings(buildings.features.map(feature => ({
@@ -59,6 +61,10 @@ const AdminMap = () => {
           building: feature.properties.building,
           buildingId: feature.properties.buildingId
         })));
+
+        /*setEdges(edges.feature.map(feature => ({
+
+        })));*/
         
         if (!window.google || !window.google.maps) {
           throw new Error("Google Maps API nem érhető el.");
@@ -96,9 +102,6 @@ const AdminMap = () => {
             position: window.google.maps.ControlPosition.TOP_LEFT,
             drawingModes: [
               window.google.maps.drawing.OverlayType.POLYGON,
-              //window.google.maps.drawing.OverlayType.RECTANGLE, //- téglalap
-              //window.google.maps.drawing.OverlayType.MARKER,
-              //window.google.maps.drawing.OverlayType.POLYLINE,
             ],
           },
           polygonOptions: {
@@ -112,12 +115,10 @@ const AdminMap = () => {
 
         drawingManager.current.setMap(map.current);
 
-        let activeEdges = []; 
+        let activeEdges = [];
 
         // Létező épületek és szobák betöltése és szerkeszthetővé tétele
         const addGeoJSONToMap = (geoJson, color, type) => {
-
-        
 
           geoJson.features.forEach((feature) => {
             const coordinates = feature.geometry.coordinates[0].map(([lng, lat]) => ({ lat, lng }));
@@ -163,13 +164,13 @@ const AdminMap = () => {
                 coordinates: coordinates, // A megfelelő koordináták átadása
               });
             });
+
+            activeEdges.forEach(edge => edge.setMap(null));
+            activeEdges = [];
             
             //Kattintáskor az adott objektumot kiválasztjuk
             polygon.addListener("click", () => {
-
-              activeEdges.forEach(edge => edge.setMap(null));
-              activeEdges = [];
-
+              
               const { id, category, name, shortName, group, number, height, type } = feature.properties;
               
               let selectedObject = { id, category, polygon};
@@ -235,6 +236,36 @@ const AdminMap = () => {
             });
           });
         };
+
+        edges.forEach((edge) => {
+          const path = edge.waypoints
+            ? edge.waypoints.map(([lng, lat]) => ({ lat, lng }))
+            : [];
+        
+          const polyline = new window.google.maps.Polyline({
+            path,
+            strokeColor: "blue",
+            strokeWeight: 3,
+            editable: true,
+            map: map.current,
+          });
+        
+          polyline.addListener("click", () => {
+            const coords = polyline.getPath().getArray().map(latLng => [latLng.lng(), latLng.lat()]);
+            const edgeData = {
+              id: edge.id,
+              fromNodeId: edge.fromNodeId,
+              toNodeId: edge.toNodeId,
+              type: edge.type,
+              iconUrl: edge.iconUrl,
+              waypoints: coords,
+              category: "edge",
+              polyline
+            };
+            setSelectedData(edgeData);
+            selectedFeature.current = edgeData;
+          });
+        });
 
         addGeoJSONToMap(buildings, "blue", "building");
         addGeoJSONToMap(floors, "green", "floor");
@@ -444,6 +475,47 @@ const AdminMap = () => {
       return;
     }
 
+    const updatedProperties = { ...selectedFeature.current, ...selectedData };
+
+    if (selectedFeature.current.category === "edge") {
+      if (!selectedFeature.current.polyline) {
+        console.warn("❌ Az edge-nek nincs polyline referenciája!");
+        return;
+      }
+  
+      const waypoints = selectedFeature.current.polyline
+        .getPath()
+        .getArray()
+        .map((latLng) => [latLng.lng(), latLng.lat()]);
+  
+      const payload = {
+        id: selectedFeature.current.id,
+        type: updatedProperties.type || "",
+        iconUrl: updatedProperties.iconUrl || null,
+        waypoints,
+      };
+  
+      try {
+        const response = await fetch(`${API_BASE_URL}/edges/${selectedFeature.current.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+  
+        if (!response.ok) throw new Error("Edge mentése sikertelen.");
+  
+        alert("✅ Útvonal (edge) frissítve!");
+        setSelectedData(null);
+        selectedFeature.current = updatedProperties;
+        setMapRefreshTrigger((prev) => prev + 1);
+      } catch (error) {
+        console.error("❌ Hiba az edge mentése során:", error);
+        alert("❌ Nem sikerült az útvonal mentése.");
+      }
+  
+      return; // 🛑 Kilépünk, ha edge volt
+    }
+
     if (!selectedFeature.current.polygon) {
       console.warn("❌ A kiválasztott objektumnak nincs polygon referenciája!");
       return;
@@ -467,7 +539,7 @@ const AdminMap = () => {
   }
 
   // Az infoboxból frissített adatok átvétele
-  const updatedProperties = { ...selectedFeature.current, ...selectedData };
+  
   
     const updatedFeature = {
       type: "FeatureCollection",
@@ -660,6 +732,15 @@ const AdminMap = () => {
               )}
             </div>
             )}
+            {selectedData.category === "edge" && (
+              <div className="info-fields">
+                <label>Típus:</label>
+                <input type="text" value={selectedData.type || ""} onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })} />
+                <label>Ikon URL:</label>
+                <input type="text" value={selectedData.iconUrl || ""} onChange={(e) => setSelectedData({ ...selectedData, iconUrl: e.target.value })} />
+                <p><strong>From:</strong> {selectedData.fromNodeId}, <strong>To:</strong> {selectedData.toNodeId}</p>
+              </div>
+            )}
             <div className="info-box-buttons">
               <button className="info-box-save" onClick={selectedData.id ? saveUpdatedFeature : handleSave} disabled={!selectedData.category}>Mentés</button>
               <button className="info-box-btn" onClick={() => setSelectedData(null)}>Bezárás</button>
@@ -667,7 +748,7 @@ const AdminMap = () => {
           </div>
         )}
       <ObjectFilter buildings={buildings} floors={floors} />
-      <DeleteItem refreshMap={refreshMap} />
+      <AdminDeleteItem refreshMap={refreshMap} />
       <div ref={mapContainer} className="admin-map-container"/>
     </div>
   );

@@ -3,7 +3,7 @@ import "../AdminLook.css";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
-const DeleteItem = ({refreshMap }) => {
+const AdminDeleteItem = ({refreshMap }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [category, setCategory] = useState("");
   const [items, setItems] = useState([]);
@@ -112,4 +112,4 @@ const DeleteItem = ({refreshMap }) => {
   );
 };
 
-export default DeleteItem;
+export default AdminDeleteItem;
