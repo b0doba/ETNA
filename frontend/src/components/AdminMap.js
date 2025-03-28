@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, useState } from "react";
 import loadGoogleMapsScript from "./loadGoogleMap";
 import "../AdminLook.css";
-import ObjectFilter from "./ObjectFilter";
+import AdminObjectFilter from "./AdminObjectFilter";
 import AdminDeleteItem from "./AdminDeleteItem";
+import AdminSelect from "./AdminSelect";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -27,8 +28,7 @@ const AdminMap = () => {
   const [mapRefreshTrigger, setMapRefreshTrigger] = useState(0);
   const [buildings, setBuildings] = useState([]);
   const [floors, setFloors] = useState([]);
-  //const [edges, setEdges] = useState([]);
-  //const [rooms, setRooms] = useState([]);
+  const [filter, setFilter] = useState(null);
   const newPolygon = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,6 +38,16 @@ const AdminMap = () => {
     setMapRefreshTrigger((prev) => prev + 1);
   };
 
+  const applyFilter = (filterData) => {
+    console.log("🎯 Szűrés alkalmazása:", filterData);
+    setFilter(filterData);
+  };
+  
+  const resetFilter = () => {
+    setFilter(null);
+    console.log("🔁 Szűrés visszaállítva");
+  };
+  
   useEffect(() => {
     const initMap = async () => {
       try {
@@ -61,10 +71,6 @@ const AdminMap = () => {
           building: feature.properties.building,
           buildingId: feature.properties.buildingId
         })));
-
-        /*setEdges(edges.feature.map(feature => ({
-
-        })));*/
         
         if (!window.google || !window.google.maps) {
           throw new Error("Google Maps API nem érhető el.");
@@ -130,6 +136,20 @@ const AdminMap = () => {
               strokeColor: "black",
               strokeWeight: 2,
             });
+
+            if (filter) {
+              if (filter.category === "building") {
+                // Ha nincs kiválasztva konkrét épület, jelenjen meg az összes
+                if (filter.buildingId && feature.properties.id !== Number(filter.buildingId)) return;
+              }
+              if (filter.category === "floor" && type === "floor") {
+                if (feature.properties.buildingId !== Number(filter.buildingId)) return;
+                if (filter.floorId && feature.properties.id !== Number(filter.floorId)) return;
+              }
+            
+              // Ha nem a szűrt kategóriának megfelelő típus, ne jelenjen meg
+              if (type !== filter.category) return;
+            }
 
             polygon.setMap(map.current);
 
@@ -234,6 +254,7 @@ const AdminMap = () => {
               // Azonnali kiemelés
               updateHighlightEdges();
             });
+
           });
         };
 
@@ -262,8 +283,10 @@ const AdminMap = () => {
               category: "edge",
               polyline
             };
+
             setSelectedData(edgeData);
             selectedFeature.current = edgeData;
+
           });
         });
 
@@ -335,7 +358,7 @@ const AdminMap = () => {
     };
 
     initMap();
-  }, [mapRefreshTrigger]);
+  }, [mapRefreshTrigger, filter]);
 
   const simplifyPolygon = (points, minDistance = 0.000001) => {
     if (points.length < 3) return points; // Ha túl kevés pont van, nem módosítunk
@@ -563,8 +586,6 @@ const AdminMap = () => {
       ],
     };
   
-    //console.log("Mentésre kerül:", JSON.stringify(updatedFeature, null, 2));
-  
     let endpoint;
     switch (selectedFeature.current.category) {
       case "building":
@@ -610,144 +631,20 @@ const AdminMap = () => {
     <div className="admin-map-container">
       {loading && <p>Betöltés...</p>}
       {error && <p>Hiba történt: {error}</p>}
-      
-      {selectedData && (
-        <div className="info-box">
-          {!selectedData.id && (
-            <div className="info-fields">
-            <label>Kategória:</label>
-              <select onChange={(e) => setSelectedData({ ...selectedData, category: e.target.value })}>
-                <option value="">Válassz</option>
-                <option value="building">Épület</option>
-                <option value="floor">Emelet</option>
-                <option value="room">Terem</option>
-              </select>
-            </div>
-          )}
-          {selectedData.category === "building" && (
-            <div className="info-fields">
-              {selectedData.id && selectedData.category === "building" && (
-                <>
-                  <label>Név:</label>
-                  <input type="text" value={selectedData.name || ""} onChange={(e) => setSelectedData({ ...selectedData, name: e.target.value })} />
-                  <label>Rövid név:</label>
-                  <input type="text" value={selectedData.shortName || ""} onChange={(e) => setSelectedData({ ...selectedData, shortName: e.target.value })} />
-                  <label>Csoport:</label>
-                  <input type="text" value={selectedData.group || ""} onChange={(e) => setSelectedData({ ...selectedData, group: e.target.value })} />
-                </>
-              )}
-              {!selectedData.id && selectedData.category === "building" && (
-                 <>
-                  <label>Név:</label>
-                  <input type="text" value={selectedData.name || ""} onChange={(e) => setSelectedData({ ...selectedData, name: e.target.value })} />
-                  <label>Rövid név:</label>
-                  <input type="text" value={selectedData.shortName || ""} onChange={(e) => setSelectedData({ ...selectedData, shortName: e.target.value })} />
-                  <label>Csoport:</label>
-                  <input type="text" value={selectedData.group || ""} onChange={(e) => setSelectedData({ ...selectedData, group: e.target.value })} />
-                  <label>Szintek száma:</label>
-                  {<input
-                    type="number"
-                    value={selectedData.numberOfFloors || ""}
-                    onChange={(e) =>
-                      setSelectedData({ ...selectedData, numberOfFloors: e.target.value !== "" ? parseInt(e.target.value, 10) : null })
-                    }
-                  />}
-                 </>
-                )}
-            </div>
-            )}
-            {selectedData.category === "floor" && (
-              <div className="info-fields">
-                {!selectedData.id && (
-                  <>
-                    <label>Épület:</label>
-                    <select
-                    onChange={(e) => setSelectedData({ ...selectedData, buildingId: parseInt(e.target.value,10) })}
-                    >
-                      <option value="">Válassz épületet</option>
-                      {buildings.map((building) => (
-                        <option key={building.id} value={building.id}>{building.name}</option>
-                      ))}
-                    </select>
-                    <label>Emelet száma:</label>
-                    <input type="number" value={selectedData.number || ""} onChange={(e) => setSelectedData({ ...selectedData, number: e.target.value !== "" ? parseInt(e.target.value, 10) : null  })} />
-                    <label>Magasság:</label>
-                    <input type="number" step="0.1" value={selectedData.height || ""} onChange={(e) => setSelectedData({ ...selectedData, height: e.target.value !== "" ? parseInt(e.target.value, 10) : null  })} />
-                  </>
-                )}
-                  {selectedData.id && selectedData.category === "floor" && (
-                    <>
-                      <label>Emelet száma:</label>
-                      <input type="number" value={selectedData.number || ""} onChange={(e) => setSelectedData({ ...selectedData, number: e.target.value !== "" ? parseInt(e.target.value, 10) : null  })} />
-                      <label>Magasság:</label>
-                      <input type="number" step="0.1" value={selectedData.height || ""} onChange={(e) => setSelectedData({ ...selectedData, height: e.target.value !== "" ? parseInt(e.target.value, 10) : null  })} />
-                    </>
-                  )}
-              </div>
-            )}
-            {selectedData.category === "room" && (
-              <div className="info-fields">
-                {!selectedData.id && (
-                <>
-                <label>Épület:</label>
-                <select
-                  onChange={(e) => {
-                    const selectedBuildingId = parseInt(e.target.value, 10);
-                    const selectedBuilding = buildings.find(b => b.id === selectedBuildingId);
-                    setSelectedData({
-                      ...selectedData,
-                      buildingId: selectedBuildingId,
-                      buildingName: selectedBuilding ? selectedBuilding.name : "",
-                    });
-                  }}>
-                    <option value="">Válassz épületet</option>
-                    {buildings.map((building) => (
-                      <option key={building.id} value={building.id}>{building.name}</option>
-                    ))}
-                  </select>
-                  <label>Emelet:</label>
-                  <select
-                  onChange={(e) => setSelectedData({ ...selectedData, floorId: parseInt(e.target.value, 10) || null})}
-                  disabled={!selectedData.buildingId}>
-                  <option value="">Válassz emeletet</option>
-                  {floors
-                    .filter(floor => floor.buildingId === selectedData.buildingId)
-                    .map((floor) => (
-                      <option key={floor.id} value={floor.id}>{floor.number}. emelet</option>
-                    ))}
-                </select>
-                  <label>Név:</label>
-                  <input type="text" value={selectedData.name || ""} onChange={(e) => setSelectedData({ ...selectedData, name: e.target.value })} />
-                  <label>Típus:</label>
-                  <input type="text" value={selectedData.type || ""} onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })} />
-                </>
-              )}
-              {selectedData.id && selectedData.category === "room" && (
-                <>
-                  <label>Név:</label>
-                  <input type="text" value={selectedData.name || ""} onChange={(e) => setSelectedData({ ...selectedData, name: e.target.value })} />
-                  <label>Típus:</label>
-                  <input type="text" value={selectedData.type || ""} onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })} />
-                </>
-              )}
-            </div>
-            )}
-            {selectedData.category === "edge" && (
-              <div className="info-fields">
-                <label>Típus:</label>
-                <input type="text" value={selectedData.type || ""} onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })} />
-                <label>Ikon URL:</label>
-                <input type="text" value={selectedData.iconUrl || ""} onChange={(e) => setSelectedData({ ...selectedData, iconUrl: e.target.value })} />
-                <p><strong>From:</strong> {selectedData.fromNodeId}, <strong>To:</strong> {selectedData.toNodeId}</p>
-              </div>
-            )}
-            <div className="info-box-buttons">
-              <button className="info-box-save" onClick={selectedData.id ? saveUpdatedFeature : handleSave} disabled={!selectedData.category}>Mentés</button>
-              <button className="info-box-btn" onClick={() => setSelectedData(null)}>Bezárás</button>
-            </div>
-          </div>
-        )}
-      <ObjectFilter buildings={buildings} floors={floors} />
+      <AdminSelect
+        selectedData={selectedData}
+        setSelectedData={setSelectedData}
+        buildings={buildings}
+        floors={floors}
+        handleSave={handleSave}
+        saveUpdatedFeature={saveUpdatedFeature}
+      />
+      <AdminObjectFilter
+        buildings={buildings}
+        floors={floors}
+        applyFilter={applyFilter}
+        resetFilter={resetFilter}
+      />
       <AdminDeleteItem refreshMap={refreshMap} />
       <div ref={mapContainer} className="admin-map-container"/>
     </div>

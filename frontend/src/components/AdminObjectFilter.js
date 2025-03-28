@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "../AdminLook.css";
 
-const ObjectFilter = ({ buildings, floors, applyFilter, resetFilter }) => {
+const AdminObjectFilter = ({ buildings, floors, applyFilter, resetFilter }) => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [selectedFloor, setSelectedFloor] = useState(null);
@@ -53,7 +53,7 @@ const ObjectFilter = ({ buildings, floors, applyFilter, resetFilter }) => {
           {selectedCategory === "floor" && (
             <>
               <label className="filter-container-lowtitle" >Épület:</label>
-              <select onChange={(e) => setSelectedBuilding(e.target.value)}>
+              <select onChange={(e) => setSelectedBuilding(Number(e.target.value))}>
                 <option value="">Válassz épületet</option>
                 {buildings.map((building) => (
                   <option key={building.id} value={building.id}>
@@ -63,7 +63,7 @@ const ObjectFilter = ({ buildings, floors, applyFilter, resetFilter }) => {
               </select>
 
               <label className="filter-container-lowtitle" >Emelet:</label>
-              <select onChange={(e) => setSelectedFloor(e.target.value)} disabled={!selectedBuilding}>
+              <select onChange={(e) => setSelectedFloor(Number(e.target.value))} disabled={!selectedBuilding}>
                 <option value="">Válassz emeletet</option>
                 {floors
                   .filter((floor) => floor.buildingId === selectedBuilding)
@@ -85,4 +85,4 @@ const ObjectFilter = ({ buildings, floors, applyFilter, resetFilter }) => {
   );
 };
 
-export default ObjectFilter;
+export default AdminObjectFilter;
