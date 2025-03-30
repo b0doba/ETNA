@@ -57,13 +57,23 @@ const MapComponent = () => {
 
         console.log("Térkép inicializálása...");
 
+        const bounds = {
+          north: mapCenter.lat + 0.2,
+          south: mapCenter.lat - 0.2,
+          east: mapCenter.lng + 0.5,
+          west: mapCenter.lng - 0.5,
+        };
+
         map.current = new window.google.maps.Map(mapContainer.current, {
-         
           streetViewControl: false,
           mapTypeControl: false,
           zoom: mapZoom,
           center:  mapCenter,
+          minZoom: 14,
           fullscreenControl: false,
+          restriction: {
+            latLngBounds: bounds,
+            strictBounds: true,},
           styles: [
             {
               featureType: "poi",
@@ -95,12 +105,10 @@ const MapComponent = () => {
               return { fillColor: "red", strokeColor: "black", strokeWeight: 3, visible: roomFloor === currentFloor };
           }
   
-          // Az adott szint világosszürke legyen
           if (category === "floor" && buildingName === selectedBuilding && floorNumber === currentFloor) {
               return { fillColor: "lightgray", strokeColor: "black", strokeWeight: 1, visible: true };
           }
   
-          // Az adott szinten lévő összes szoba szürke maradjon
           if (category === "room" && buildingName === selectedBuilding && roomFloor === currentFloor) {
               return { fillColor: "gray", strokeColor: "black", strokeWeight: 1, visible: true };
           }
@@ -129,11 +137,6 @@ const MapComponent = () => {
           //const category = event.feature.getProperty("category") || "Ismeretlen";
           let displayText = event.feature.getProperty("name") || "Nincs név"; // Alapértelmezett
 
-          // Ha az objektum egy "floor", akkor a "number" értéket használjuk
-          /*if (category === "floor") {
-            displayText = `Emelet: ${event.feature.getProperty("number")}`;
-          }*/
-
           const content = `
             <div class="custom-info-window">
               <div class="info-title">${displayText}</div>
@@ -144,8 +147,6 @@ const MapComponent = () => {
           infoWindow.setPosition(event.latLng);
           infoWindow.open(map.current);
         });
-
-        // Az X gomb eltüntetése (kis késleltetéssel, hogy biztos működjön)
         
         setTimeout(() => {
           document.querySelector(".gm-ui-hover-effect")?.remove();
@@ -155,8 +156,6 @@ const MapComponent = () => {
           infoWindow.close();
         });
 
-        // Building nézet és kilépés
-        
         map.current.data.addListener("click", (event) => {
           const category = event.feature.getProperty("category");
         
@@ -171,7 +170,6 @@ const MapComponent = () => {
               .sort((a, b) => a.properties.number - b.properties.number); // Szintek sorrendbe állítása
             
             console.log("Az összes szint az API válaszból:", floors.features);
-
 
             setBuildingFloors(floorsInBuilding);
             setCurrentFloor(0); // Alapértelmezett szint mindig 0
@@ -252,8 +250,19 @@ const MapComponent = () => {
             overlay.draw = function () {
               const projection = this.getProjection();
               const position = projection.fromLatLngToDivPixel(new window.google.maps.LatLng(lat, lng));
-              iconDiv.style.left = position.x + "px";
-              iconDiv.style.top = position.y + "px";
+              const zoom = map.current.getZoom();
+
+              const baseSize = 7;
+              const scale = 1 / Math.pow(2, zoom - 18);
+              let size = baseSize / scale;
+
+              // Limitáljuk a méretet 6 és 14 pixel közé
+              size = Math.max(6, Math.min(size, 14));
+
+              iconDiv.style.left = position.x - size / 2 + "px";
+              iconDiv.style.top = position.y - size / 2 + "px";
+              img.style.width = size + "px";
+              img.style.height = size + "px";
             };
             overlay.onRemove = function () {
               if (iconDiv.parentNode) {
@@ -265,7 +274,6 @@ const MapComponent = () => {
           }
         });
 
-        
         console.log("Térkép sikeresen inicializálva!");
         setLoading(false);
       } catch (err) {
@@ -274,7 +282,6 @@ const MapComponent = () => {
       }
     };
     
-
     initMap();
 
     if (window.location.pathname === "/") {
@@ -289,7 +296,6 @@ const MapComponent = () => {
         const response = await fetch(`http://localhost:5000/api/floors?building=${buildingName}`); //itt van a hiba
         const data = await response.json();
 
-        // 🔥 Átalakítjuk a GeoJSON features tömböt egyszerűbb objektum tömbbé
         const floors = data.features.map((feature) => ({
             id: feature.properties.id,
             number: feature.properties.number,
@@ -297,8 +303,6 @@ const MapComponent = () => {
             building: feature.properties.building,
             coordinates: JSON.stringify(feature.geometry.coordinates), // Eltároljuk a koordinátákat is!
         }));
-
-        
 
         return floors; // Visszaadjuk a megfelelő struktúrát
     } catch (error) {
@@ -315,8 +319,6 @@ const MapComponent = () => {
       const data = await response.json();
   
       console.log("Keresési eredmények:", data);
-
-      
   
       if (data.buildings.length > 0) {
         setIsBuildingView(false); // Külső nézetre váltás
@@ -411,7 +413,6 @@ const MapComponent = () => {
   
   const highlightRoom = async(room) => {
     if (!map.current) return;
-
     
     const buildingName = room.floor.building.name; 
     //console.log("Épület neve:", buildingName);
@@ -478,7 +479,6 @@ const MapComponent = () => {
       let endNode = dataEnd.nodes?.[0] ??
         (dataEnd.buildings?.[0] &&
           nodes.find(n => n.buildingId === dataEnd.buildings[0].id));
-
   
       if (!startNode || !endNode) {
         alert("Nem található megfelelő kezdő vagy célpont.");

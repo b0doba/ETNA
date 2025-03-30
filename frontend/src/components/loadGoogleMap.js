@@ -28,7 +28,7 @@ const loadGoogleMapsScript = () => {
     // Script létrehozása és hozzáadása a DOM-hoz
     const script = document.createElement("script");
     script.id = "google-maps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&loading=async&libraries=places,drawing&callback=initGoogleMaps`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&loading=async&libraries=places,drawing,marker&callback=initGoogleMaps`;
     script.async = true;
     script.defer = true;
     script.onerror = () => reject(new Error("Google Maps API betöltési hiba."));

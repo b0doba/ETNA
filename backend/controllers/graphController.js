@@ -39,6 +39,39 @@ async function createNode(req, res) {
   }
 }
 
+async function updateNode(req, res) {
+  try {
+    const { id } = req.params;
+    const { name, type, iconUrl, coordinates, floorId, buildingId } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "Node ID megadása kötelező!" });
+    }
+
+    const node = await prisma.node.findUnique({ where: { id: Number(id) } });
+    if (!node) {
+      return res.status(404).json({ error: "Node nem található!" });
+    }
+
+    const updatedNode = await prisma.node.update({
+      where: { id: Number(id) },
+      data: {
+        name,
+        type,
+        iconUrl,
+        floorId: floorId !== undefined ? floorId : null,
+        buildingId: buildingId !== undefined ? buildingId : null,
+        coordinates: coordinates ? JSON.stringify(coordinates) : null,
+      },
+    });
+
+    res.json({ success: true, node: updatedNode });
+  } catch (error) {
+    console.error("🚨 Hiba a node frissítésekor:", error);
+    res.status(500).json({ error: "Nem sikerült frissíteni a node-ot." });
+  }
+}
+
 async function deleteNode(req, res) {
   try {
     const { id } = req.params;
@@ -76,7 +109,6 @@ async function getEdges(req, res) {
     res.status(500).json({ error: "Hiba történt az élek lekérdezésekor." });
   }
 }
-
 
 function calculateDistance(coord1, coord2) {
   const R = 6371e3;
@@ -177,4 +209,4 @@ async function deleteEdge(req, res) {
   }
 }
 
-module.exports = { getNodes, createNode, deleteNode, getEdges, createEdge, updateEdge, deleteEdge };
+module.exports = { getNodes, createNode, updateNode, deleteNode, getEdges, createEdge, updateEdge, deleteEdge };

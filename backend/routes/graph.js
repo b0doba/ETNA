@@ -1,10 +1,11 @@
 const express = require("express");
-const { getNodes, createNode, deleteNode, getEdges, createEdge, updateEdge, deleteEdge } = require("../controllers/graphController");
+const { getNodes, createNode, updateNode, deleteNode, getEdges, createEdge, updateEdge, deleteEdge } = require("../controllers/graphController");
 
 const router = express.Router();
 
 router.get("/nodes", getNodes);
 router.post("/nodes", createNode);
+router.put("/nodes/:id", updateNode);
 router.delete("/nodes/:id", deleteNode);
 
 router.get("/edges", getEdges);

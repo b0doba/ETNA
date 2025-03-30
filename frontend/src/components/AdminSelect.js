@@ -1,6 +1,8 @@
 import React from "react";
+import "../AdminLook.css";
 
-const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleSave, saveUpdatedFeature }) => {
+const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleSave, saveUpdatedFeature, showEdgeForm, nodes }) => {
+  
   if (!selectedData) return null;
 
   return (
@@ -13,6 +15,8 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
             <option value="building">Épület</option>
             <option value="floor">Emelet</option>
             <option value="room">Terem</option>
+            <option value="node">Node</option>
+            <option value="edge">Edge</option>
           </select>
         </div>
       )}
@@ -127,8 +131,59 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
           />
         </div>
       )}
+      {selectedData.category === "node" && (
+        <div className="info-fields">
+          <label>Név:</label>
+          <input
+            type="text"
+            value={selectedData.name || ""}
+            onChange={(e) => setSelectedData({ ...selectedData, name: e.target.value })}
+          />
+          <label>Típus:</label>
+          <input
+            type="text"
+            value={selectedData.type || ""}
+            onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })}
+          />
+          <label>Ikon URL:</label>
+          <input
+            type="text"
+            value={selectedData.iconUrl || ""}
+            onChange={(e) => setSelectedData({ ...selectedData, iconUrl: e.target.value })}
+          />
+          {!selectedData.id && (
+            <>
+              <label>Épület:</label>
+              <select
+                onChange={(e) =>
+                  setSelectedData({ ...selectedData, buildingId: parseInt(e.target.value, 10) || null })
+                }>
+                <option value="">Válassz épületet</option>
+                {buildings.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
 
-      {selectedData.category === "edge" && (
+              <label>Emelet:</label>
+              <select
+                disabled={!selectedData.buildingId}
+                onChange={(e) =>
+                  setSelectedData({ ...selectedData, floorId: parseInt(e.target.value, 10) || null })
+                }>
+                <option value="">Válassz emeletet</option>
+                {floors
+                  .filter((f) => f.buildingId === selectedData.buildingId)
+                  .map((floor) => (
+                    <option key={floor.id} value={floor.id}>
+                      {floor.number}. emelet
+                    </option>
+                  ))}
+              </select>
+            </>
+          )}
+        </div>
+      )}
+      {selectedData.category === "edge" && selectedData.id && (
         <div className="info-fields">
           <label>Típus:</label>
           <input type="text" value={selectedData.type || ""} onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })} />
@@ -137,10 +192,54 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
           <p><strong>From:</strong> {selectedData.fromNodeId}, <strong>To:</strong> {selectedData.toNodeId}</p>
         </div>
       )}
+      {showEdgeForm && !selectedData.id && selectedData.category === "edge" && (
+        <div className="info-fields">
+          <label>From Node:</label>
+          <select
+            value={selectedData.fromNodeId || ""}
+            onChange={(e) =>
+              setSelectedData({ ...selectedData, fromNodeId: parseInt(e.target.value, 10) })
+            }
+          >
+        <option value="">Válassz node-ot</option>
+              {nodes.map((node) => (
+                <option key={node.id} value={node.id}>
+                  #{node.id} - {node.name}
+                </option>
+              ))}
+            </select>
 
+            <label>To Node:</label>
+            <select
+              value={selectedData.toNodeId || ""}
+              onChange={(e) =>
+                setSelectedData({ ...selectedData, toNodeId: parseInt(e.target.value, 10) })
+              }
+            >
+              <option value="">Válassz node-ot</option>
+              {nodes.map((node) => (
+                <option key={node.id} value={node.id}>
+                  #{node.id} - {node.name}
+                </option>
+              ))}
+            </select>
+          <label>Típus:</label>
+          <input
+            type="text"
+            value={selectedData.type || ""}
+            onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })}
+          />
+          <label>Ikon URL:</label>
+          <input
+            type="text"
+            value={selectedData.iconUrl || ""}
+            onChange={(e) => setSelectedData({ ...selectedData, iconUrl: e.target.value })}
+          />
+        </div>
+      )}
       <div className="info-box-buttons">
         <button className="info-box-save" onClick={selectedData.id ? saveUpdatedFeature : handleSave} disabled={!selectedData.category}>Mentés</button>
-        <button className="info-box-btn" onClick={() => setSelectedData(null)}>Bezárás</button>
+        <button className="info-box-btn" onClick={() => {setSelectedData(null); } }>Bezárás</button>
       </div>
     </div>
   );
