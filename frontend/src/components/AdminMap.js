@@ -23,13 +23,14 @@ const AdminMap = () => {
   const map = useRef(null);
   const drawingManager = useRef(null);
   const selectedFeature = useRef(null);
-  //const gridLines = useRef([]);
   const [selectedData, setSelectedData] = useState(null);
   const [showEdgeForm, setShowEdgeForm] = useState(false);
   const [mapRefreshTrigger, setMapRefreshTrigger] = useState(0);
+  const [rooms, setRooms] = useState([]);
+  const [floors, setFloors] = useState([]);
   const [buildings, setBuildings] = useState([]);
   const [nodes, setNodes] = useState([]);
-  const [floors, setFloors] = useState([]);
+  const [edges, setEdges] = useState([]);
   const [filter, setFilter] = useState(null);
   const newPolygon = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +55,7 @@ const AdminMap = () => {
     const initMap = async () => {
       try {
         await loadGoogleMapsScript();
-        const [buildings,floors, rooms, edges, nodes] = await Promise.all([
+        const [buildings, floors, rooms, edges, nodes] = await Promise.all([
           fetchGeoJSON(`${API_BASE_URL}/buildings`),
           fetchGeoJSON(`${API_BASE_URL}/floors`),
           fetchGeoJSON(`${API_BASE_URL}/rooms`),
@@ -66,6 +67,7 @@ const AdminMap = () => {
           id: feature.properties.id,
           name: feature.properties.name,
           group: feature.properties.group,
+          gather: feature.properties.gather,
         })));
         
         setFloors(floors.features.map(feature => ({
@@ -75,9 +77,18 @@ const AdminMap = () => {
           buildingId: feature.properties.buildingId
         })));
 
+        setRooms(rooms.features.map(feature => ({
+          id: feature.properties.id,
+          floorId: feature.properties.floorId,
+        })))
+
         setNodes(nodes.map(node => ({
           id: node.id,
           name: node.name || "Névtelen node",
+        })));
+
+        setEdges(edges.map(edge => ({
+          id: edge.id,
         })));
         
         if (!window.google || !window.google.maps) {
@@ -147,17 +158,35 @@ const AdminMap = () => {
             });
 
             if (filter) {
-              if (filter.category === "building") {
-                // Ha nincs kiválasztva konkrét épület, jelenjen meg az összes
-                if (filter.buildingId && feature.properties.id !== Number(filter.buildingId)) return;
-              }
-              if (filter.category === "floor" && type === "floor") {
-                if (feature.properties.buildingId !== Number(filter.buildingId)) return;
-                if (filter.floorId && feature.properties.id !== Number(filter.floorId)) return;
+              const { category, buildingId, floorNumber } = filter;
+            
+              if (category === "building") {
+                if (type === "node") {
+                  const hasBuilding = feature.properties.buildingId != null;
+                  const noFloor = feature.properties.floorId == null;
+                  if (!(hasBuilding && noFloor)) return;
+                } else if (type !== "building") {
+                  return;
+                }
+            
+                if (buildingId && feature.properties.id !== Number(buildingId)) return;
               }
             
-              // Ha nem a szűrt kategóriának megfelelő típus, ne jelenjen meg
-              if (type !== filter.category) return;
+              if (category === "floor") {
+                if (type === "floor") {
+                  if (feature.properties.number !== Number(floorNumber)) return;
+                } else if (type === "room") {
+                  const floor = floors.find(f => f.id === feature.properties.floorId);
+                  if (!floor || floor.number !== Number(floorNumber)) return;
+                } else {
+                  return; // Csak floor és room jelenhet meg
+                }
+              }
+            
+              // outdoor edges és node-ok külön kezelése
+              if (category === "building") {
+                if (type === "edge" && feature.properties.type !== "outdoor") return;
+              }
             }
 
             polygon.setMap(map.current);
@@ -220,7 +249,7 @@ const AdminMap = () => {
               activeEdges.forEach(edge => edge.setMap(null));
               activeEdges = [];
               
-              const { id, category, name, shortName, group, number, height, type } = feature.properties;
+              const { id, category, name, shortName, group, number, height, type, gather } = feature.properties;
               
               let selectedObject = { id, category, polygon};  
               
@@ -230,6 +259,7 @@ const AdminMap = () => {
                   name: name || "",
                   shortName: shortName || "",
                   group: group || "",
+                  gather: gather || "",
                 };
               } else if (category === "floor") {
                 selectedObject = {
@@ -315,7 +345,7 @@ const AdminMap = () => {
             console.log("📍 Kiválasztott edge:", edgeData);
           });
         });
-
+                
         //Nodok megjelenítése és kiemelése
         nodes.forEach((node) => {
           const { id, name, coordinates } = node;
@@ -477,7 +507,8 @@ const AdminMap = () => {
       payload = {
         name: selectedData.name || "",
         shortName: selectedData.shortName || null,
-        group: selectedData.group || null,
+        group: selectedData.group || "",
+        gather: selectedData.gather || "",
         numberOfFloors: selectedData.numberOfFloors || 1,
         coordinates: selectedData.coordinates || [],
       };
@@ -678,6 +709,7 @@ const AdminMap = () => {
             name: updatedProperties.name || "",
             shortName: updatedProperties.shortName || "",
             group: updatedProperties.group || "",
+            gather: updatedProperties.gather || "",
             number: updatedProperties.number || 0,
             height: updatedProperties.height || 0,
             type: updatedProperties.type || "",
@@ -745,6 +777,9 @@ const AdminMap = () => {
       <AdminObjectFilter
         buildings={buildings}
         floors={floors}
+        rooms={rooms}
+        nodes={nodes}
+        edges={edges}
         applyFilter={applyFilter}
         resetFilter={resetFilter}
       />

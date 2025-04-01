@@ -22,6 +22,7 @@ async function getBuildings(req, res) {
             name: building.name,
             shortName: building.shortName ?? null,
             group: building.group ?? null,
+            gather: building.gather ?? null,
             coordinates: building.coordinates ? JSON.parse(building.coordinates) : null,
             category: "building",
           },
@@ -70,6 +71,7 @@ async function getBuildings(req, res) {
             name: building.properties.name || buildingName,
             shortName: building.properties.shortName || existingBuilding.shortName,
             group: building.properties.group || existingBuilding.group,
+            gather: building.properties.gather || existingBuilding.gather,
             coordinates: JSON.stringify(cleanedCoordinates),
           },
           create: {
@@ -77,6 +79,7 @@ async function getBuildings(req, res) {
             name: buildingName,
             shortName: building.properties.shortName || "",
             group: building.properties.group || "",
+            gather: building.properties.gather || "",
             coordinates: JSON.stringify(cleanedCoordinates),
           },
         });
@@ -91,7 +94,7 @@ async function getBuildings(req, res) {
 
   async function createBuildings (req, res) {
     try {
-      const { name, shortName, group, coordinates, numberOfFloors} = req.body;
+      const { name, shortName, group, gather, coordinates, numberOfFloors} = req.body;
   
       if (!name || !coordinates) {
         return res.status(400).json({ error: "Név és koordináták szükségesek!" });
@@ -105,6 +108,7 @@ async function getBuildings(req, res) {
           name,
           shortName: shortName || null,
           group: group || "",
+          gather: gather || "",
           coordinates: coordinates ? JSON.stringify(coordinates) : [],
         },
       });

@@ -41,6 +41,12 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
             value={selectedData.group || ""}
             onChange={(e) => setSelectedData({ ...selectedData, group: e.target.value })}
           />
+          <label>Kapcsolat:</label>
+          <input
+            type="text"
+            value={selectedData.gather || ""}
+            onChange={(e) => setSelectedData({ ...selectedData, gather: e.target.value })}
+          />
           {!selectedData.id && (
             <>
               <label>Szintek száma:</label>

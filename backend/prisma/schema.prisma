@@ -12,9 +12,10 @@ model Building {
   name        String
   shortName   String?
   coordinates Json?     
-  group       Json?
+  group       String?
+  gather      String?
   floors      Floor[]
-  nodes      Node[]
+  nodes       Node[]
 }
 
 model Floor {
@@ -25,7 +26,7 @@ model Floor {
   coordinates Json?
   rooms       Room[]
   building    Building @relation(fields: [buildingId], references: [id])
-  nodes      Node[]
+  nodes       Node[]
 }
 
 model Room {
@@ -40,7 +41,7 @@ model Room {
 model Node {
   id         Int     @id @default(autoincrement())
   name       String
-  type       String  // "room", "hallway", "stair", "elevator", "door"
+  type       String
   floorId    Int?
   buildingId Int?
   coordinates Json?

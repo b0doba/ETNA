@@ -1,84 +1,73 @@
 import React, { useState } from "react";
 import "../AdminLook.css";
 
-const AdminObjectFilter = ({ buildings, floors, applyFilter, resetFilter }) => {
+const AdminObjectFilter = ({ floors, applyFilter, resetFilter }) => {
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedBuilding, setSelectedBuilding] = useState(null);
-  const [selectedFloor, setSelectedFloor] = useState(null);
+  const [selectedFloorNumber, setSelectedFloorNumber] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Szűrés alkalmazása és a térkép frissítése
   const handleApplyFilter = () => {
-    if (applyFilter) {
-      applyFilter({
-        category: selectedCategory,
-        buildingId: selectedBuilding,
-        floorId: selectedFloor,
-      });
-    } else {
-      console.error("❌ applyFilter függvény nem elérhető!");
+    const filterData = { category: selectedCategory };
+
+    if (selectedCategory === "floor" && selectedFloorNumber !== null) {
+      filterData.floorNumber = selectedFloorNumber;
     }
-  
+
+    applyFilter(filterData);
     setIsOpen(false);
   };
+
+  const floorNumbers = [...new Set(floors.map(f => f.number))].sort((a, b) => a - b);
 
   return (
     <div>
       <button className="filter-button" onClick={() => setIsOpen(!isOpen)}>
         Szűrő
       </button>
+
       {isOpen && (
         <div className="filter-container">
           <label className="filter-container-lowtitle">Kategória:</label>
-          <select onChange={(e) => setSelectedCategory(e.target.value)}>
+          <select
+            value={selectedCategory}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value);
+              setSelectedFloorNumber(null);
+            }}
+          >
             <option value="">Válassz</option>
-            <option value="building">Épület</option>
-            <option value="floor">Emelet</option>
+            <option value="building">Épületek és kültéri kapcsolatok</option>
+            <option value="node_edge">Csak kültéri node-ok és edge-ek</option>
+            <option value="floor">Emelet és szobák</option>
           </select>
-
-          {selectedCategory === "building" && (
-            <>
-              <label className="filter-container-lowtitle">Épület:</label>
-              <select onChange={(e) => setSelectedBuilding(e.target.value)}>
-                <option value="">Válassz épületet</option>
-                {buildings.map((building) => (
-                  <option key={building.id} value={building.id}>
-                    {building.name}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
 
           {selectedCategory === "floor" && (
             <>
-              <label className="filter-container-lowtitle" >Épület:</label>
-              <select onChange={(e) => setSelectedBuilding(Number(e.target.value))}>
-                <option value="">Válassz épületet</option>
-                {buildings.map((building) => (
-                  <option key={building.id} value={building.id}>
-                    {building.name}
+              <label className="filter-container-lowtitle">Emelet szám:</label>
+              <select
+                onChange={(e) =>
+                  setSelectedFloorNumber(e.target.value ? Number(e.target.value) : null)
+                }
+              >
+                <option value="">Válassz emelet számot</option>
+                {floorNumbers.map((number) => (
+                  <option key={number} value={number}>
+                    {number}. emelet
                   </option>
                 ))}
-              </select>
-
-              <label className="filter-container-lowtitle" >Emelet:</label>
-              <select onChange={(e) => setSelectedFloor(Number(e.target.value))} disabled={!selectedBuilding}>
-                <option value="">Válassz emeletet</option>
-                {floors
-                  .filter((floor) => floor.buildingId === selectedBuilding)
-                  .map((floor) => (
-                    <option key={floor.id} value={floor.id}>
-                      {floor.number}. emelet
-                    </option>
-                  ))}
               </select>
             </>
           )}
 
-          <button className="filter-apply-btn" onClick={handleApplyFilter}>Alkalmazás</button>
-          <button className="filter-close-btn" onClick={() => setIsOpen(false)}>Mégse</button>
-          <button className="filter-reset-btn" onClick={resetFilter}>Szűrés visszaállítása</button>
+          <button className="filter-apply-btn" onClick={handleApplyFilter}>
+            Alkalmazás
+          </button>
+          <button className="filter-close-btn" onClick={() => setIsOpen(false)}>
+            Mégse
+          </button>
+          <button className="filter-reset-btn" onClick={resetFilter}>
+            Szűrés visszaállítása
+          </button>
         </div>
       )}
     </div>
