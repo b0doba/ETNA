@@ -37,59 +37,70 @@ const AdminMap = () => {
   const [error, setError] = useState(null);
 
   const refreshMap = () => {
-    console.log("🔄 Térkép frissítése...");
+    //console.log(" Térkép frissítése...");
     setMapRefreshTrigger((prev) => prev + 1);
   };
 
   const applyFilter = (filterData) => {
-    console.log("🎯 Szűrés alkalmazása:", filterData);
+    //console.log(" Szűrés alkalmazása:", filterData);
     setFilter(filterData);
   };
   
   const resetFilter = () => {
     setFilter(null);
-    console.log("🔁 Szűrés visszaállítva");
+    //console.log(" Szűrés visszaállítva");
   };
-  
   useEffect(() => {
     const initMap = async () => {
       try {
         await loadGoogleMapsScript();
-        const [buildings, floors, rooms, edges, nodes] = await Promise.all([
+        const [buildingsGeo, floorsGeo, roomsGeo,  nodesRaw, edgesRaw] = await Promise.all([
           fetchGeoJSON(`${API_BASE_URL}/buildings`),
           fetchGeoJSON(`${API_BASE_URL}/floors`),
           fetchGeoJSON(`${API_BASE_URL}/rooms`),
-          fetchGeoJSON(`${API_BASE_URL}/edges`),
           fetchGeoJSON(`${API_BASE_URL}/nodes`),
+          fetchGeoJSON(`${API_BASE_URL}/edges`),
         ]);
 
-        setBuildings(buildings.features.map(feature => ({
+        setBuildings(buildingsGeo.features.map(feature => ({
           id: feature.properties.id,
           name: feature.properties.name,
           group: feature.properties.group,
           gather: feature.properties.gather,
         })));
         
-        setFloors(floors.features.map(feature => ({
+        setFloors(floorsGeo.features.map(feature => ({
           id: feature.properties.id,
           number: feature.properties.number,
           building: feature.properties.building,
           buildingId: feature.properties.buildingId
         })));
 
-        setRooms(rooms.features.map(feature => ({
+        setRooms(roomsGeo.features.map(feature => ({
           id: feature.properties.id,
           floorId: feature.properties.floorId,
         })))
 
-        setNodes(nodes.map(node => ({
+        setNodes(nodesRaw.map(node => ({
           id: node.id,
           name: node.name || "Névtelen node",
+          coordinates: node.coordinates,
+          type: node.type,
+          buildingId: node.buildingId,
+          floorId: node.floorId,
+          iconUrl: node.iconUrl,
         })));
 
-        setEdges(edges.map(edge => ({
+        setEdges(edgesRaw.map(edge => ({
           id: edge.id,
+          fromNodeId: edge.fromNodeId,
+          toNodeId: edge.toNodeId,
+          type: edge.type,
+          iconUrl: edge.iconUrl,
+          waypoints: edge.waypoints,
         })));
+
+        //console.log(" Lekért nodesRaw:", nodesRaw);
         
         if (!window.google || !window.google.maps) {
           throw new Error("Google Maps API nem érhető el.");
@@ -184,22 +195,29 @@ const AdminMap = () => {
               }
             
               // outdoor edges és node-ok külön kezelése
-              if (category === "building") {
-                if (type === "edge" && feature.properties.type !== "outdoor") return;
+              if (category === "node_edge") {
+                // csak outdoor edge-ek ÉS exit típusú node-ok
+                if (type === "node") {
+                  if (feature.properties.type !== "exit") return;
+                } else if (type === "edge") {
+                  if (feature.properties.type !== "outdoor") return;
+                } else {
+                  return; // minden mást elrejtünk (épület, floor, room)
+                }
               }
             }
 
             polygon.setMap(map.current);
 
             window.google.maps.event.addListener(drawingManager.current, "overlaycomplete", (event) => {
-              console.log("✅ Alakzat létrehozva!");
+              console.log("Alakzat létrehozva!");
               drawingManager.current.setDrawingMode(null); // Automatikusan kikapcsolja a rajzolási módot
 
               if (event.type === "marker") {
                 const position = event.overlay.getPosition();
                 const coordinates = [[position.lng(), position.lat()]];
             
-                console.log("📍 Új node koordinátái:", coordinates);
+                //console.log("Új node koordinátái:", coordinates);
             
                 setSelectedData({
                   category: "node",
@@ -223,10 +241,10 @@ const AdminMap = () => {
   
                 if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
                   coordinates.push([...firstPoint]); // Ha nem azonos, hozzáadjuk az elsőt a végére
-                  console.log("Poligon lezárva az első és utolsó pont összeillesztésével.");
+                  //console.log("Poligon lezárva az első és utolsó pont összeillesztésével.");
                 }
               
-                console.log("📍 Új alakzat koordinátái:", coordinates);
+                //console.log("Új alakzat koordinátái:", coordinates);
                 
                 if (!coordinates || coordinates.length === 0) {
                   alert("Hiba: Az alakzatnak kell koordinátákkal rendelkeznie!");
@@ -277,7 +295,7 @@ const AdminMap = () => {
               
               selectedFeature.current = selectedObject;
               setSelectedData(selectedObject);
-              console.log("📍 Kiválasztott objektum:", selectedFeature.current);
+              console.log("Kiválasztott objektum:", selectedFeature.current);
 
               const path = polygon.getPath();
               const highlight = new window.google.maps.Polyline({
@@ -302,7 +320,8 @@ const AdminMap = () => {
         };
 
         //EDGE-k megjelenítése és kiemelése
-        edges.forEach((edge) => {
+        edgesRaw.forEach((edge) => {
+          if (filter?.category === "floor") return;
           const path = edge.waypoints
             ? edge.waypoints.map(([lng, lat]) => ({ lat, lng }))
             : [];
@@ -342,19 +361,27 @@ const AdminMap = () => {
 
             setSelectedData(edgeData);
             selectedFeature.current = edgeData;
-            console.log("📍 Kiválasztott edge:", edgeData);
+            console.log("Kiválasztott edge:", edgeData);
           });
         });
                 
         //Nodok megjelenítése és kiemelése
-        nodes.forEach((node) => {
+        nodesRaw.forEach((node) => {
+          if (filter?.category === "floor") return;
           const { id, name, coordinates } = node;
         
           let parsedCoordinates;
-          try {
-            parsedCoordinates = JSON.parse(coordinates);
-          } catch (error) {
-            console.warn(`❌ JSON.parse hiba a node-nál (id: ${id}):`, coordinates);
+          if (typeof coordinates === "string") {
+            try {
+              parsedCoordinates = JSON.parse(coordinates);
+            } catch (error) {
+              console.warn(`❌ JSON.parse hiba a node-nál (id: ${id}):`, coordinates);
+              return;
+            }
+          } else if (Array.isArray(coordinates)) {
+            parsedCoordinates = coordinates;
+          } else {
+            console.warn(`❌ Érvénytelen koordináták (id: ${id}):`, coordinates);
             return;
           }
         
@@ -408,13 +435,13 @@ const AdminMap = () => {
         
             setSelectedData(nodeData);
             selectedFeature.current = nodeData;
-            console.log("📍 Kiválasztott node (marker):", nodeData);
+            console.log("Kiválasztott node:", nodeData);
           });
         });
 
-        addGeoJSONToMap(buildings, "blue", "building");
-        addGeoJSONToMap(floors, "green", "floor");
-        addGeoJSONToMap(rooms, "red", "room");
+        addGeoJSONToMap(buildingsGeo, "blue", "building");
+        addGeoJSONToMap(floorsGeo, "green", "floor");
+        addGeoJSONToMap(roomsGeo, "red", "room");
 
         setLoading(false);
       } catch (err) {
@@ -426,8 +453,8 @@ const AdminMap = () => {
     initMap();
   }, [mapRefreshTrigger, filter]);
 
-  const simplifyPolygon = (points, minDistance = 0.000001) => {
-    if (points.length < 3) return points; // Ha túl kevés pont van, nem módosítunk
+  const simplifyPolygon = (points, minDistance = 0.0000001) => {
+    if (points.length < 4) return points; // Ha túl kevés pont van, nem módosítunk
 
     const sqMinDistance = minDistance * minDistance;
 
@@ -457,7 +484,7 @@ const AdminMap = () => {
 
     // Egyenes vonalon lévő felesleges pontok eltávolítása
     const removeCollinearPoints = (points) => {
-        if (points.length < 3) return points;
+        if (points.length < 4) return points;
 
         const isCollinear = (p1, p2, p3) => {
             return Math.abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) < 1e-10;
@@ -486,6 +513,55 @@ const AdminMap = () => {
     }
 
     return filteredPoints;
+};
+
+const simplifyPolyline = (points, minDistance = 0.0000001) => {
+  if (points.length < 3) return points;
+
+  const sqMinDistance = minDistance * minDistance;
+
+  const getSqDist = (p1, p2) => {
+      const dx = p1[0] - p2[0];
+      const dy = p1[1] - p2[1];
+      return dx * dx + dy * dy;
+  };
+
+  // Távolság alapú szűrés
+  let filteredPoints = [];
+  for (let i = 0; i < points.length; i++) {
+      let isDuplicate = false;
+
+      for (let j = 0; j < filteredPoints.length; j++) {
+          if (getSqDist(points[i], filteredPoints[j]) < sqMinDistance) {
+              isDuplicate = true;
+              break;
+          }
+      }
+
+      if (!isDuplicate) {
+          filteredPoints.push(points[i]);
+      }
+  }
+
+  // Kollineáris pontok kiszűrése
+  const removeCollinearPoints = (points) => {
+      if (points.length < 3) return points;
+
+      const isCollinear = (p1, p2, p3) => {
+          return Math.abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) < 1e-8;
+      };
+
+      let result = [points[0]];
+      for (let i = 1; i < points.length - 1; i++) {
+          if (!isCollinear(points[i - 1], points[i], points[i + 1])) {
+              result.push(points[i]);
+          }
+      }
+      result.push(points[points.length - 1]);
+      return result;
+  };
+
+  return removeCollinearPoints(filteredPoints);
 };
 
   const handleSave = async () => {
@@ -575,9 +651,7 @@ const AdminMap = () => {
   
       if (!response.ok) throw new Error("Hiba a mentés során");
   
-      const data = await response.json();
-      console.log("✅ Sikeres válasz az API-tól:", data);
-      alert("✅ Mentés sikeres!");
+      alert("Mentés sikeres!");
       setSelectedData(null);
       refreshMap();
     } catch (error) {
@@ -644,12 +718,14 @@ const AdminMap = () => {
         .getPath()
         .getArray()
         .map((latLng) => [latLng.lng(), latLng.lat()]);
+
+      const simplifiedWaypoints = simplifyPolyline(waypoints, 0.0000001);
   
       const payload = {
         id: selectedFeature.current.id,
         type: updatedProperties.type || "",
         iconUrl: updatedProperties.iconUrl || null,
-        waypoints,
+        waypoints: simplifiedWaypoints,
       };
   
       try {
@@ -683,7 +759,7 @@ const AdminMap = () => {
       .getArray()
       .map((latLng) => [latLng.lng(), latLng.lat()]);
   
-    const simplifiedCoordinates = simplifyPolygon(coordinates, 0.0001);
+    const simplifiedCoordinates = simplifyPolygon(coordinates, 0.00001);
 
     // Ha az első és utolsó koordináta nem azonos, zárjuk le a poligont
     if (
@@ -691,7 +767,7 @@ const AdminMap = () => {
     (simplifiedCoordinates[0][0] !== simplifiedCoordinates[simplifiedCoordinates.length - 1][0] ||
       simplifiedCoordinates[0][1] !== simplifiedCoordinates[simplifiedCoordinates.length - 1][1])
   ) {
-    console.log("🔄 Poligon lezárása...");
+    //console.log("Poligon lezárása...");
     simplifiedCoordinates.push([...simplifiedCoordinates[0]]);
   }
   
