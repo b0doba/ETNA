@@ -307,3 +307,29 @@ html, body {
 .autocomplete-list li:hover {
   background: #f0f0f0;
 }
+
+.toggle-hud-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1500;
+  background: white;
+  color: #01acc8;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.hidden {
+  transform: translateX(-400px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.search-panel,
+.category-buttons,
+.slider-container {
+  transition: all 0.4s ease;
+}

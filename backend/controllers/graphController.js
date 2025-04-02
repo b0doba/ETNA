@@ -4,7 +4,11 @@ const prisma = new PrismaClient();
 // 🔹 Összes csomópont lekérése
 async function getNodes(req, res) {
   try {
-    const nodes = await prisma.node.findMany();
+    const nodes = await prisma.node.findMany({
+      include: {
+        building: true,
+      },
+    });
     res.json(nodes);
   } catch (error) {
     console.error("🚨 Hiba a csomópontok lekérdezésekor:", error);
@@ -102,7 +106,16 @@ async function deleteNode(req, res) {
 // 🔹 Összes él lekérése
 async function getEdges(req, res) {
   try {
-    const edges = await prisma.edge.findMany();
+    const edges = await prisma.edge.findMany({
+      include: {
+        fromNode: {
+          include: { building: true },
+        },
+        toNode: {
+          include: { building: true },
+        },
+      },
+    });
     res.json(edges);
   } catch (error) {
     console.error("🚨 Hiba az élek lekérdezésekor:", error);

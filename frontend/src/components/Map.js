@@ -31,6 +31,8 @@ const MapComponent = () => {
   const [nodes, setNodes] = useState([]);
   const [mapZoom, setMapZoom] = useState(18);
   const [mapCenter, setMapCenter] = useState({ lat: 47.693344, lng: 17.627529 });
+  const [hudHidden, setHudHidden] = useState(false);
+  const toggleHUD = () => setHudHidden(prev => !prev);
   const [clearRoute, setClearRoute] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -543,7 +545,11 @@ const highlightRoom = async (room) => {
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
+      <button className="toggle-hud-btn" onClick={toggleHUD}>
+    {hudHidden ? '▶' : '◀'}
+    </button> 
       <SearchPanel
+        hudHidden={hudHidden}
         onSearch={handleSearch}
         highlightBuilding={highlightBuilding} 
         highlightRoom={highlightRoom}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "../App.css";
 
-const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute  }) => {
+const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hudHidden  }) => {
   const [showRouteInputs, setShowRouteInputs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [startPoint, setStartPoint] = useState("");
@@ -64,7 +64,7 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute  })
   return (
     <>
     {/* Kategória gombok az oldal tetején */}
-    <div className="category-buttons">
+    <div className={`category-buttons ${hudHidden ? 'hidden' : ''}`}>
         <button className="category-btn" onClick={() => onGroupSelect("Kollégiumok")}>Kollégiumok</button>
         <button className="category-btn" onClick={() => onGroupSelect("Sportcsarnokok")}>Sportcsarnokok</button>
         <button className="category-btn" onClick={() => onGroupSelect("Parkolók")}>Parkolók</button>
@@ -72,7 +72,7 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute  })
         <button className="category-btn">Rendezvények</button>
       </div>
       {/* Keresőpanel */}
-    <div className="search-panel">
+      <div className={`search-panel ${hudHidden ? 'hidden' : ''}`}>
       {!showRouteInputs ? (
         <div className="search-bar">
           <div className="autocomplete">

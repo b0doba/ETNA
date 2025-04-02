@@ -3,7 +3,7 @@ import "../AdminLook.css";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
-const AdminDeleteItem = ({refreshMap }) => {
+const AdminDeleteItem = ({ refreshMap, setShowEdgeForm, setSelectedData }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [category, setCategory] = useState("");
   const [items, setItems] = useState([]);
@@ -17,28 +17,44 @@ const AdminDeleteItem = ({refreshMap }) => {
     if (category === "building") apiUrl = `${API_BASE_URL}/buildings`;
     if (category === "floor") apiUrl = `${API_BASE_URL}/floors`;
     if (category === "room") apiUrl = `${API_BASE_URL}/rooms`;
+    if (category === "node") apiUrl = `${API_BASE_URL}/nodes`;
+    if (category === "edge") apiUrl = `${API_BASE_URL}/edges`;
 
     fetch(apiUrl)
       .then((res) => res.json())
       .then((data) => {
-        const formattedItems = data.features.map((feature) => {
-          const baseItem = {
-            id: feature.properties.id,
-            name: feature.properties.name || feature.properties.number, // Név vagy szám
-          };
+        let formattedItems = [];
 
-          // Ha az elem egy emelet, csatoljuk az épület nevét
-          if (category === "floor" && feature.properties.building) {
-            baseItem.name += ` (${feature.properties.building})`;
-          }
-
-          // Ha az elem egy terem, csatoljuk az épület nevét
-          if (category === "room" && feature.properties.building) {
-            baseItem.name += ` (${feature.properties.building})`;
-          }
-
-          return baseItem;
-        });
+        if (category === "node") {
+          formattedItems = data.map((item) => ({
+            id: item.id,
+            name: `Node #${item.id} (${item.building?.name || "nincs épület"})`,
+          }));
+        } else if (category === "edge") {
+          formattedItems = data.map((item) => {
+            const fromNode = item.fromNode;
+            const toNode = item.toNode;
+        
+            const fromStr = `${fromNode?.id} (${fromNode?.building?.name || "nincs épület"})`;
+            const toStr = `${toNode?.id} (${toNode?.building?.name || "nincs épület"})`;
+        
+            return {
+              id: item.id,
+              name: `id:${item.id}: -- ${fromStr} → ${toStr}`,
+            };
+          });
+        } else {
+          formattedItems = data.features.map((feature) => {
+            let name = feature.properties.name || feature.properties.number;
+            if ((category === "floor" || category === "room") && feature.properties.building) {
+              name += ` (${feature.properties.building})`;
+            }
+            return {
+              id: feature.properties.id,
+              name,
+            };
+          });
+        }
 
         setItems(formattedItems);
       })
@@ -55,20 +71,18 @@ const AdminDeleteItem = ({refreshMap }) => {
     if (category === "building") apiUrl = `${API_BASE_URL}/deleteBuilding/${selectedItem}`;
     if (category === "floor") apiUrl = `${API_BASE_URL}/deleteFloor/${selectedItem}`;
     if (category === "room") apiUrl = `${API_BASE_URL}/deleteRoom/${selectedItem}`;
+    if (category === "node") apiUrl = `${API_BASE_URL}/nodes/${selectedItem}`;
+    if (category === "edge") apiUrl = `${API_BASE_URL}/edges/${selectedItem}`;
 
     try {
-      const response = await fetch(apiUrl, {
-        method: "DELETE",
-      });
+      const response = await fetch(apiUrl, { method: "DELETE" });
 
-      if (!response.ok) {
-        throw new Error("Hiba történt a törlés során.");
-      }
+      if (!response.ok) throw new Error("Hiba történt a törlés során.");
 
       alert("✅ Sikeresen törölve!");
       setItems(items.filter((item) => item.id !== selectedItem));
       setSelectedItem("");
-      setIsVisible(false); 
+      setIsVisible(false);
       refreshMap();
     } catch (error) {
       console.error("🚨 Törlési hiba:", error);
@@ -82,33 +96,37 @@ const AdminDeleteItem = ({refreshMap }) => {
         <img src={tarshIcon} alt="Törlés" />
       </button>
       {isVisible && (
-       <div className="delete-container">
-        <div className="delete-container-title">Elem törlése</div>
-        <label className="delete-container-lowtitle">Kategória:</label>
-        <select onChange={(e) => setCategory(e.target.value)}>
+        <div className="delete-container">
+          <div className="delete-container-title">Elem törlése</div>
+          <label className="delete-container-lowtitle">Kategória:</label>
+          <select onChange={(e) => { setCategory(e.target.value); setSelectedItem(""); setItems([]); }}>
             <option value="">Válassz</option>
             <option value="building">Épület</option>
             <option value="floor">Emelet</option>
             <option value="room">Terem</option>
-        </select>
-        {category && (
+            <option value="node">Node</option>
+            <option value="edge">Edge</option>
+          </select>
+
+          {category && (
             <>
-            <label className="delete-container-lowtitle">Elem kiválasztása:</label>
-            <select onChange={(e) => setSelectedItem(e.target.value)}>
+              <label className="delete-container-lowtitle">Elem kiválasztása:</label>
+              <select onChange={(e) => setSelectedItem(e.target.value)} value={selectedItem}>
                 <option value="">Válassz egy elemet</option>
                 {items.map((item) => (
-                <option key={item.id} value={item.id}>
+                  <option key={item.id} value={item.id}>
                     {item.name}
-                </option>
+                  </option>
                 ))}
-            </select>
-                <button  className="delete-btn" onClick={handleDelete} disabled={!selectedItem}>Törlés</button>
-                <button className="close-btn" onClick={() => setIsVisible(false)}>Mégse</button>
+              </select>
+
+              <button className="delete-btn" onClick={handleDelete} disabled={!selectedItem}>Törlés</button>
+              <button className="close-btn" onClick={() => setIsVisible(false)}>Mégse</button>
             </>
-        )}
+          )}
         </div>
-    )}
-</div>
+      )}
+    </div>
   );
 };
 
