@@ -29,7 +29,7 @@ const NavigationComponent = ({ start, end, map, clear }) => {
         const shortestPath = dijkstra(graph, start.id, end.id);
 
         if (!shortestPath || shortestPath.length === 0) {
-          console.warn("⚠️ Nincs elérhető útvonal.");
+          console.warn("Nincs elérhető útvonal.");
           return;
         }
 
@@ -69,7 +69,7 @@ const NavigationComponent = ({ start, end, map, clear }) => {
 
 
       } catch (error) {
-        console.error("❌ Hiba az útvonal kiszámításakor:", error);
+        console.error("Hiba az útvonal kiszámításakor:", error);
       }
     };
 

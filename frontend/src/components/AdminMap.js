@@ -375,18 +375,18 @@ const AdminMap = () => {
             try {
               parsedCoordinates = JSON.parse(coordinates);
             } catch (error) {
-              console.warn(`❌ JSON.parse hiba a node-nál (id: ${id}):`, coordinates);
+              console.warn(`JSON.parse hiba a node-nál (id: ${id}):`, coordinates);
               return;
             }
           } else if (Array.isArray(coordinates)) {
             parsedCoordinates = coordinates;
           } else {
-            console.warn(`❌ Érvénytelen koordináták (id: ${id}):`, coordinates);
+            console.warn(`Érvénytelen koordináták (id: ${id}):`, coordinates);
             return;
           }
         
           if (!Array.isArray(parsedCoordinates) || !Array.isArray(parsedCoordinates[0]) || parsedCoordinates[0].length !== 2) {
-            console.warn(`❌ Érvénytelen parsed koordináták (id: ${id}):`, parsedCoordinates);
+            console.warn(`Érvénytelen parsed koordináták (id: ${id}):`, parsedCoordinates);
             return;
           }
         
@@ -656,14 +656,14 @@ const simplifyPolyline = (points, minDistance = 0.0000001) => {
       refreshMap();
     } catch (error) {
       console.error("🚨 Hiba a mentés során:", error);
-      alert("❌ Nem sikerült menteni az adatokat.");
+      alert("Nem sikerült menteni az adatokat.");
     }
   };
 
   //Kijelölt objektum mentése az API-ba
   async function saveUpdatedFeature() {
     if (!selectedFeature.current) {
-      console.warn("❌ Nincs kiválasztott objektum!");
+      console.warn("Nincs kiválasztott objektum!");
       return;
     }
 
@@ -701,8 +701,8 @@ const simplifyPolyline = (points, minDistance = 0.0000001) => {
         selectedFeature.current = updatedProperties;
         setMapRefreshTrigger((prev) => prev + 1);
       } catch (error) {
-        console.error("❌ Hiba a node mentése során:", error);
-        alert("❌ Nem sikerült a node mentése.");
+        console.error("Hiba a node mentése során:", error);
+        alert("Nem sikerült a node mentése.");
       }
     
       return;
@@ -710,7 +710,7 @@ const simplifyPolyline = (points, minDistance = 0.0000001) => {
 
     if (selectedFeature.current.category === "edge") {
       if (!selectedFeature.current.polyline) {
-        console.warn("❌ Az edge-nek nincs polyline referenciája!");
+        console.warn("Az edge-nek nincs polyline referenciája!");
         return;
       }
   
@@ -746,11 +746,11 @@ const simplifyPolyline = (points, minDistance = 0.0000001) => {
         alert("❌ Nem sikerült az útvonal mentése.");
       }
   
-      return; // 🛑 Kilépünk, ha edge volt
+      return; // Kilépünk, ha edge volt
     }
 
     if (!selectedFeature.current.polygon) {
-      console.warn("❌ A kiválasztott objektumnak nincs polygon referenciája!");
+      console.warn("A kiválasztott objektumnak nincs polygon referenciája!");
       return;
     }
   
@@ -821,7 +821,7 @@ const simplifyPolyline = (points, minDistance = 0.0000001) => {
         throw new Error(`Hiba a mentés során: ${response.statusText}`);
       }
   
-      alert(`✅ Mentés sikeres!\nTípus: ${updatedProperties.category}\nID: ${updatedProperties.id}`);
+      alert(`Mentés sikeres!\nTípus: ${updatedProperties.category}\nID: ${updatedProperties.id}`);
 
       setSelectedData(null);
       
@@ -830,8 +830,8 @@ const simplifyPolyline = (points, minDistance = 0.0000001) => {
       setSelectedData(null);
       setMapRefreshTrigger((prev) => prev + 1);
     } catch (error) {
-      console.error("🚨 Hiba a mentés során:", error);
-      alert("❌ Nem sikerült a mentés.");
+      console.error("Hiba a mentés során:", error);
+      alert("Nem sikerült a mentés.");
     }
   }
 

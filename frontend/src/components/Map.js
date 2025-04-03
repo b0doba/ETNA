@@ -210,7 +210,7 @@ const MapComponent = () => {
             setSelectedBuilding(buildingName);
             setFloorGroup(gatherName);
         
-            console.log("🏬 Összes floor.features (épületnévvel):", floors.features.map(f => ({
+            console.log("Összes floor.features (épületnévvel):", floors.features.map(f => ({
               floorNumber: f.properties.number,
               building: f.properties.building
             })));
@@ -226,9 +226,9 @@ const MapComponent = () => {
                 const match = buildingGather === cleanGather(gatherName);
                 
                 if (!match) {
-                  console.log(`⛔ Kihagyott floor: épület = ${floor.properties.building}, nincs gather egyezés (${buildingGather} ≠ ${gatherName})`);
+                  console.log(`Kihagyott floor: épület = ${floor.properties.building}, nincs gather egyezés (${buildingGather} ≠ ${gatherName})`);
                 }
-                console.log("✅ Kiválasztott csoporthoz tartozó emeletek (gather alapján):");
+                console.log("Kiválasztott csoporthoz tartozó emeletek (gather alapján):");
                 
                 return match;
 
@@ -240,7 +240,7 @@ const MapComponent = () => {
               floorsInGroup.forEach(f => {
                 const relatedBuilding = buildings.features.find(b => b.properties.name.trim() === f.properties.building.trim());
                 const buildingGather = relatedBuilding?.properties?.gather?.replace(/"/g, "").trim();
-                console.log(`🏢 épület: ${f.properties.building}, 🧱 szint: ${f.properties.number}, gather: ${buildingGather}`);
+                console.log(`épület: ${f.properties.building}, szint: ${f.properties.number}, gather: ${buildingGather}`);
               });
             
             //console.log("Az összes szint az API válaszból:", floors.features);
@@ -480,7 +480,7 @@ const highlightRoom = async (room) => {
     return;
   }
 
-  // 🔥 Állítsuk be a belső nézetet és a kapcsolódó adatokat
+  // Állítsuk be a belső nézetet és a kapcsolódó adatokat
   setIsBuildingView(true);
   setSelectedBuilding(buildingName);
   setFloorGroup(buildingGather);
@@ -488,7 +488,7 @@ const highlightRoom = async (room) => {
   setHighlightedRoom(room);
   setMapZoom(19);
 
-  // 🔥 Visszakeressük az összes emeletet, ami a gather csoporthoz tartozik
+  // Visszakeressük az összes emeletet, ami a gather csoporthoz tartozik
   const floorsInGroup = allFloorsRef.current?.features
     ?.filter(floor => {
       const relatedBuilding = buildingsRef.current?.features?.find(b => b.properties.name.trim() === floor.properties.building.trim());
@@ -500,7 +500,7 @@ const highlightRoom = async (room) => {
   const uniqueFloors = [...new Set(floorsInGroup?.map(f => f.properties.number))];
   setAvailableFloorNumbers(uniqueFloors);
 
-  // 🔍 Középpont beállítása
+  // Középpont beállítása
   const coordinates = JSON.parse(room.coordinates);
   const bounds = new window.google.maps.LatLngBounds();
   coordinates.forEach(([lng, lat]) => bounds.extend(new window.google.maps.LatLng(lat, lng)));

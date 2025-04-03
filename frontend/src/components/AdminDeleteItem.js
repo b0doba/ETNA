@@ -58,7 +58,7 @@ const AdminDeleteItem = ({ refreshMap, setShowEdgeForm, setSelectedData }) => {
 
         setItems(formattedItems);
       })
-      .catch((error) => console.error("❌ Hiba az adatok lekérésekor:", error));
+      .catch((error) => console.error("Hiba az adatok lekérésekor:", error));
   }, [category]);
 
   const handleDelete = async () => {
@@ -79,14 +79,14 @@ const AdminDeleteItem = ({ refreshMap, setShowEdgeForm, setSelectedData }) => {
 
       if (!response.ok) throw new Error("Hiba történt a törlés során.");
 
-      alert("✅ Sikeresen törölve!");
+      alert("Sikeresen törölve!");
       setItems(items.filter((item) => item.id !== selectedItem));
       setSelectedItem("");
       setIsVisible(false);
       refreshMap();
     } catch (error) {
       console.error("🚨 Törlési hiba:", error);
-      alert("❌ Nem sikerült törölni az elemet.");
+      alert("Nem sikerült törölni az elemet.");
     }
   };
 
