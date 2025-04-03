@@ -315,7 +315,7 @@ html, body {
   z-index: 1500;
   background: rgb(246, 250, 255);
   color: #01acc8;
-  border: none;
+  border: none; /*teszt*/
   border-radius: 8px;
   padding: 73.6px 6px;
   font-size: 12px;
