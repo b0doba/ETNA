@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "../App.css";
 
 const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hudHidden  }) => {
@@ -7,6 +7,8 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
   const [startPoint, setStartPoint] = useState("");
   const [destination, setDestination] = useState("");
   const [suggestions, setSuggestions] = useState([]);
+  const suggestionRefs = useRef([]);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [activeInput, setActiveInput] = useState("search");
   const searchIcon = "/assets/icons/arrow.svg";
   const routeIcon =  "/assets/icons/pitch.svg";
@@ -18,6 +20,10 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
         return;
       }
 
+      setSelectedIndex(-1);
+      suggestionRefs.current = [];
+
+      
       try {
         const response = await fetch(`http://localhost:5000/api/search?q=${query}`);
         const data = await response.json();
@@ -51,10 +57,21 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
     }
     console.log("Kezdőpont: ",startPoint, "Úticél: ",destination)
     
-    onRouteSearch(startPoint, destination);
+    onRouteSearch(startPoint, destination, suggestions);
   };
   
-  
+  useEffect(() => {
+  if (
+    selectedIndex >= 0 &&
+    suggestionRefs.current[selectedIndex] &&
+    suggestionRefs.current[selectedIndex].scrollIntoView
+  ) {
+    suggestionRefs.current[selectedIndex].scrollIntoView({
+      behavior: "smooth",
+      block: "nearest"
+    });
+  }
+}, [selectedIndex]);
 
   const handleSearch = () => {
     onSearch(searchQuery);
@@ -82,13 +99,37 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setActiveInput("search")}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    setSelectedIndex((prev) => (prev + 1) % suggestions.length);
+                  } else if (e.key === "ArrowUp") {
+                    setSelectedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+                  } else if (e.key === "Enter") {
+                    if (selectedIndex >= 0 && suggestions[selectedIndex]) {
+                      const selected = suggestions[selectedIndex];
+                      setSearchQuery(selected.name);
+                      setSuggestions([]);
+                      setSelectedIndex(-1);
+                    } else {
+                      handleSearch();
+                    }
+                  }
+                }}
               />
               {suggestions.length > 0 && activeInput === "search" && (
                 <ul className="autocomplete-list">
                   {suggestions.map((item, index) => (
-                    <li key={index} onClick={() => { setSearchQuery(item.name); setSuggestions([]);}}>
-                      {item.name} ({item.type})
+                    <li
+                    key={index}
+                    ref={(el) => (suggestionRefs.current[index] = el)}
+                    className={index === selectedIndex ? "selected" : ""}
+                    onClick={() => {
+                      setSearchQuery(item.name); // vagy setStartPoint / setDestination
+                      setSuggestions([]);
+                      setSelectedIndex(-1);
+                    }}
+                  >
+                    {item.name} ({item.type})
                     </li>
                   ))}
                 </ul>
@@ -110,13 +151,37 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
                 value={startPoint}
                 onChange={(e) => setStartPoint(e.target.value)}
                 onFocus={() => setActiveInput("start")}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    setSelectedIndex((prev) => (prev + 1) % suggestions.length);
+                  } else if (e.key === "ArrowUp") {
+                    setSelectedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+                  } else if (e.key === "Enter") {
+                    if (selectedIndex >= 0 && suggestions[selectedIndex]) {
+                      setStartPoint(suggestions[selectedIndex].name);
+                      setSuggestions([]);
+                      setSelectedIndex(-1);
+                    } else {
+                      handleRouteSearch();
+                    }
+                  }
+                }}
               />
               {suggestions.length > 0 && activeInput === "start" && (
                 <ul className="autocomplete-list">
                   {suggestions.map((item, index) => (
-                    <li key={index} onClick={() => { setStartPoint(item.name); setSuggestions([]); }}>
-                      {item.name} ({item.type})
-                    </li>
+                    <li
+                      key={index}
+                      ref={(el) => (suggestionRefs.current[index] = el)}
+                      className={index === selectedIndex ? "selected" : ""}
+                      onClick={() => {
+                       setStartPoint(item.name);
+                       setSuggestions([]);
+                       setSelectedIndex(-1);
+                     }}
+                   >
+                     {item.name} ({item.type})
+                   </li>
                   ))}
                 </ul>
               )}
@@ -128,13 +193,37 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 onFocus={() => setActiveInput("destination")}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    setSelectedIndex((prev) => (prev + 1) % suggestions.length);
+                  } else if (e.key === "ArrowUp") {
+                    setSelectedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+                  } else if (e.key === "Enter") {
+                    if (selectedIndex >= 0 && suggestions[selectedIndex]) {
+                      setDestination(suggestions[selectedIndex].name);
+                      setSuggestions([]);
+                      setSelectedIndex(-1);
+                    } else {
+                      handleRouteSearch();
+                    }
+                  }
+                }}
               />
               {suggestions.length > 0 && activeInput === "destination" && (
                 <ul className="autocomplete-list">
                   {suggestions.map((item, index) => (
-                    <li key={index} onClick={() => { setDestination(item.name); setSuggestions([]); }}>
-                      {item.name} ({item.type})
-                    </li>
+                    <li
+                      key={index}
+                      ref={(el) => (suggestionRefs.current[index] = el)}
+                      className={index === selectedIndex ? "selected" : ""}
+                      onClick={() => {
+                        setDestination(item.name);
+                        setSuggestions([]);
+                        setSelectedIndex(-1);
+                    }}
+                  >
+                    {item.name} ({item.type})
+                  </li>
                   ))}
                 </ul>
               )}

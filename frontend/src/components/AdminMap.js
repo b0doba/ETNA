@@ -392,17 +392,17 @@ const AdminMap = () => {
         
           const [lng, lat] = parsedCoordinates[0];
           const position = { lat, lng };
-        
+       
           const marker = new window.google.maps.Marker({
             position,
             map: map.current,
             draggable: true,
             icon: {
-              url: `/assets/icons/${node.iconUrl}`,
-              scaledSize: new window.google.maps.Size(20, 20), // ikon mérete
+              url: `/assets/icons/marker-stroked.svg`,
+              scaledSize: new window.google.maps.Size(20, 20),
             },
           });
-        
+
           marker.addListener("click", () => {
 
             activeEdges.forEach((e) => e.setMap(null));

@@ -59,6 +59,23 @@ async function getRooms (req, res) {
   
         const roomName = room.properties.name || existingRoom.name; // Ha nincs name, akkor használjuk a meglévőt
         const roomType = room.properties.type || existingRoom.type || "Unknown";
+
+        let center = null;
+        if (cleanedCoordinates && cleanedCoordinates.length > 0) {
+          let minLng = cleanedCoordinates[0][0], maxLng = cleanedCoordinates[0][0];
+          let minLat = cleanedCoordinates[0][1], maxLat = cleanedCoordinates[0][1];
+
+          for (const [lng, lat] of cleanedCoordinates) {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+          }
+
+          const centerLng = (minLng + maxLng) / 2;
+          const centerLat = (minLat + maxLat) / 2;
+          center = [[centerLng, centerLat]];
+        }
   
         console.log("📌 Mentendő adatok:", {
           id: room.properties.id,
@@ -82,6 +99,30 @@ async function getRooms (req, res) {
             floorId: existingRoom.floorId
           },
         });
+
+        if (center) {
+          const nodeName = `${roomName}_node`;
+  
+          const existingNode = await prisma.node.findFirst({
+            where: {
+              name: nodeName,
+              type: "terem",
+              floorId: existingRoom.floorId,
+            },
+          });
+  
+          if (existingNode) {
+            await prisma.node.update({
+              where: { id: existingNode.id },
+              data: {
+                coordinates: JSON.stringify(center),
+              },
+            });
+  
+            console.log(`📍 Node "${nodeName}" pozíció frissítve.`);
+          }
+        }
+      
       }
   
       res.json({ success: true, message: "Szobák frissítve!" });
@@ -106,12 +147,59 @@ async function getRooms (req, res) {
           type,
           coordinates: coordinates ? JSON.stringify(coordinates) : [],
         },
+        include: {
+          floor: true,
+        }
       });
+
+      let center = null;
+
+      let rawPoints = [];
+
+      if (Array.isArray(coordinates)) {
+        if (Array.isArray(coordinates[0][0])) {
+          // GeoJSON style: [[[lng, lat], ...]]
+          rawPoints = coordinates[0];
+        } else {
+          // Már csak a polygon pontjai: [[lng, lat], ...]
+          rawPoints = coordinates;
+        }
+      }
+
+      if (rawPoints.length > 0) {
+        let minLng = rawPoints[0][0], maxLng = rawPoints[0][0];
+        let minLat = rawPoints[0][1], maxLat = rawPoints[0][1];
+
+        for (const [lng, lat] of rawPoints) {
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+        }
+
+        const centerLng = (minLng + maxLng) / 2;
+        const centerLat = (minLat + maxLat) / 2;
+        center = [[centerLng, centerLat]];
+      }
+
+      // Node létrehozása
+      if (center) {
+        await prisma.node.create({
+          data: {
+            name: `${newRoom.name}_node`,
+            type: "terem",
+            floorId: newRoom.floorId,
+            buildingId: newRoom.floor.buildingId,
+            coordinates: JSON.stringify(center),
+            iconUrl: "school.svg",
+          },
+        });
+      }
   
-      res.status(201).json({ success: true, message: "Terem sikeresen létrehozva!", room: newRoom });
+      res.status(201).json({ success: true, message: "Terem és node sikeresen létrehozva!", room: newRoom });
     } catch (error) {
-      console.error("🚨 Hiba a terem létrehozásakor:", error);
-      res.status(500).json({ error: "Nem sikerült létrehozni a termet." });
+      console.error("🚨 Hiba a terem vagy node létrehozásakor:", error);
+      res.status(500).json({ error: "Nem sikerült létrehozni a termet vagy node-ot." });
     }
   }
 

@@ -32,10 +32,10 @@ const MapComponent = () => {
   const [mapZoom, setMapZoom] = useState(18);
   const [mapCenter, setMapCenter] = useState({ lat: 47.693344, lng: 17.627529 });
   const [hudHidden, setHudHidden] = useState(false);
-  const toggleHUD = () => setHudHidden(prev => !prev);
   const [clearRoute, setClearRoute] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const toggleHUD = () => setHudHidden(prev => !prev);
   const handleGroupSelect = (group) => {
     highlightBuilding(null, group); // A highlightBuilding-et hívjuk a kiválasztott csoportra
   };
@@ -173,7 +173,6 @@ const MapComponent = () => {
         map.current.data.addListener("mouseover", (event) => {
           //const category = event.feature.getProperty("category") || "Ismeretlen";
           let displayText = event.feature.getProperty("name") || "Nincs név"; // Alapértelmezett
-
           const content = `
             <div class="custom-info-window">
               <div class="info-title">${displayText}</div>
@@ -311,19 +310,21 @@ const MapComponent = () => {
             iconDiv.style.position = "absolute";
             iconDiv.style.width = "24px";
             iconDiv.style.height = "24px";
-            iconDiv.style.opacity = "0.4";
-        
-            const img = document.createElement("img");
-            img.src = `/assets/icons/${node.iconUrl}`; 
-            img.style.width = "12px";
-            img.style.height = "12px";
-            iconDiv.appendChild(img);
+            iconDiv.style.opacity = "0.3";
+
+            if(node.iconUrl) {
+              const img = document.createElement("img");
+              img.src = `/assets/icons/${node.iconUrl}`; 
+              img.style.width = "12px";
+              img.style.height = "12px";
+              iconDiv.appendChild(img);
+            }
         
             const overlay = new window.google.maps.OverlayView();
             overlay.onAdd = function () {
               const panes = this.getPanes();
               panes.overlayImage.appendChild(iconDiv);
-            };
+            ;}
             overlay.draw = function () {
               const projection = this.getProjection();
               const position = projection.fromLatLngToDivPixel(new window.google.maps.LatLng(lat, lng));
@@ -335,11 +336,13 @@ const MapComponent = () => {
 
               // Limitáljuk a méretet 6 és 14 pixel közé
               size = Math.max(6, Math.min(size, 14));
-
+              const img = iconDiv.querySelector("img")
+              if (img) {
               iconDiv.style.left = position.x - size / 2 + "px";
               iconDiv.style.top = position.y - size / 2 + "px";
               img.style.width = size + "px";
               img.style.height = size + "px";
+              }
             };
             overlay.onRemove = function () {
               if (iconDiv.parentNode) {
@@ -545,21 +548,21 @@ const highlightRoom = async (room) => {
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
-      <button className="toggle-hud-btn" onClick={toggleHUD}>
-    {hudHidden ? '▶' : '◀'}
-    </button> 
-      <SearchPanel
-        hudHidden={hudHidden}
-        onSearch={handleSearch}
-        highlightBuilding={highlightBuilding} 
-        highlightRoom={highlightRoom}
-        onRouteSearch={handleRouteSearch}
-        onGroupSelect={handleGroupSelect}
-        onCancelRoute={() => {
-          setStartLocation(null);
-          setEndLocation(null);
-          setClearRoute(true);
-        }}
+    <button className="toggle-hud-btn" onClick={toggleHUD}>
+      {hudHidden ? '▶' : '◀'}
+    </button>
+    <SearchPanel
+      hudHidden={hudHidden}
+      onSearch={handleSearch}
+      highlightBuilding={highlightBuilding} 
+      highlightRoom={highlightRoom}
+      onRouteSearch={handleRouteSearch}
+      onGroupSelect={handleGroupSelect}
+      onCancelRoute={() => {
+        setStartLocation(null);
+        setEndLocation(null);
+        setClearRoute(true);
+      }}
       />
       <NavigationComponent start={startLocation} end={endLocation} map={map.current} clear={clearRoute} />
       {loading && <p>Betöltés...</p>}
