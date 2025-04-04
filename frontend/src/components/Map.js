@@ -306,7 +306,7 @@ const MapComponent = () => {
           if (node.coordinates) {
             const [lng, lat] = JSON.parse(node.coordinates)[0];
         
-            const iconDiv = document.createElement("div");
+            /*const iconDiv = document.createElement("div");
             iconDiv.style.position = "absolute";
             iconDiv.style.width = "24px";
             iconDiv.style.height = "24px";
@@ -350,7 +350,7 @@ const MapComponent = () => {
               }
             };
         
-            overlay.setMap(map.current);
+            overlay.setMap(map.current);*/
           }
         });
 

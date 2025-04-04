@@ -203,6 +203,85 @@ async function updateEdge(req, res) {
   }
 }
 
+function isProjectionOnSegment(p, a, b) {
+  const epsilon = 0.000000000001;
+  const total = calculateDistance(a, b);
+  const d1 = calculateDistance(a, p);
+  const d2 = calculateDistance(p, b);
+  return Math.abs((d1 + d2) - total) < epsilon;
+}
+
+async function splitEdgeAtNode(req, res) {
+  try {
+    const { edgeId, nodeId, projectionPoint } = req.body;
+
+    const edge = await prisma.edge.findUnique({
+      where: { id: edgeId },
+    });
+
+    if (!edge) return res.status(404).json({ error: "Edge nem található!" });
+
+    const node = await prisma.node.findUnique({
+      where: { id: nodeId },
+    });
+
+    if (!node) return res.status(404).json({ error: "Node nem található!" });
+
+    const waypoints = edge.waypoints;
+
+    // Vágjuk szét a waypointokat
+    const fromSegment = [];
+    const toSegment = [];
+
+    let inserted = false;
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      const a = waypoints[i];
+      const b = waypoints[i + 1];
+      fromSegment.push(a);
+
+      // Ha a projekció az (a, b) szakaszra esett
+      const isOnSegment = isProjectionOnSegment(projectionPoint, a, b);
+      if (!inserted && isOnSegment) {
+        fromSegment.push(projectionPoint);
+        toSegment.push(projectionPoint);
+        inserted = true;
+      }
+    }
+    toSegment.push(...waypoints.slice(fromSegment.length - 1));
+
+    // Töröljük a régit
+    await prisma.edge.delete({ where: { id: edgeId } });
+
+    // Létrehozunk két új élt
+    await prisma.edge.create({
+      data: {
+        fromNodeId: edge.fromNodeId,
+        toNodeId: nodeId,
+        type: edge.type,
+        iconUrl: edge.iconUrl || null,
+        waypoints: fromSegment,
+        distance: calculateDistance(fromSegment[0], projectionPoint),
+      },
+    });
+
+    await prisma.edge.create({
+      data: {
+        fromNodeId: nodeId,
+        toNodeId: edge.toNodeId,
+        type: edge.type,
+        iconUrl: edge.iconUrl || null,
+        waypoints: toSegment,
+        distance: calculateDistance(projectionPoint, toSegment[toSegment.length - 1]),
+      },
+    });
+
+    res.json({ success: true, message: "Edge sikeresen megtörve és frissítve!" });
+  } catch (error) {
+    console.error("🚨 splitEdgeAtNode hiba:", error);
+    res.status(500).json({ error: "Nem sikerült megtörni az edge-et." });
+  }
+}
+
 async function deleteEdge(req, res) {
   try {
     const { id } = req.params;
@@ -222,4 +301,4 @@ async function deleteEdge(req, res) {
   }
 }
 
-module.exports = { getNodes, createNode, updateNode, deleteNode, getEdges, createEdge, updateEdge, deleteEdge };
+module.exports = { getNodes, createNode, updateNode, deleteNode, getEdges, createEdge, updateEdge, splitEdgeAtNode, deleteEdge };

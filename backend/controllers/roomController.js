@@ -1,3 +1,63 @@
+const haversine = require("haversine-distance");
+const { splitEdgeAtNode } = require("./graphController");
+
+function projectPointToSegment(p, a, b) {
+  const [px, py] = p;
+  const [ax, ay] = a;
+  const [bx, by] = b;
+
+  const dx = bx - ax;
+  const dy = by - ay;
+
+  if (dx === 0 && dy === 0) return a;
+
+  const t = ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy);
+  const clampedT = Math.max(0, Math.min(1, t));
+
+  return [ax + clampedT * dx, ay + clampedT * dy];
+}
+
+function getDistance(p1, p2) {
+  return haversine({ lat: p1[1], lng: p1[0] }, { lat: p2[1], lng: p2[0] });
+}
+
+async function getNearestProjection(point, floorId, prisma) {
+  const edges = await prisma.edge.findMany({
+    where: { type: "hallway" },
+    include: {
+      fromNode: true,
+      toNode: true,
+    }
+  });
+
+  let minDistance = Infinity;
+  let bestPoint = null;
+
+  for (const edge of edges) {
+    if (!edge.waypoints || !edge.fromNode || !edge.toNode) continue;
+
+    if (edge.fromNode.floorId !== floorId || edge.toNode.floorId !== floorId) continue;
+
+    const waypoints = edge.waypoints;
+
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      const a = waypoints[i];
+      const b = waypoints[i + 1];
+
+      const projected = projectPointToSegment(point, a, b);
+      const dist = getDistance(point, projected);
+
+      if (dist < minDistance) {
+        minDistance = dist;
+        bestPoint = projected;
+      }
+    }
+  }
+
+  return bestPoint;
+}
+
+
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
@@ -110,19 +170,51 @@ async function getRooms (req, res) {
               floorId: existingRoom.floorId,
             },
           });
+
+          const projected = await getNearestProjection(center[0], existingRoom.floorId, prisma);
+          const finalCoord = projected ? [projected] : center;
   
           if (existingNode) {
             await prisma.node.update({
               where: { id: existingNode.id },
               data: {
-                coordinates: JSON.stringify(center),
+                coordinates: JSON.stringify(finalCoord),
               },
             });
   
             console.log(`📍 Node "${nodeName}" pozíció frissítve.`);
+            if (projected) {
+              const hallwayEdges = await prisma.edge.findMany({
+                where: { type: "hallway" },
+              });
+    
+              for (const edge of hallwayEdges) {
+                const waypoints = edge.waypoints;
+                for (let i = 0; i < waypoints.length - 1; i++) {
+                  const a = waypoints[i];
+                  const b = waypoints[i + 1];
+    
+                  const [px, py] = projected;
+                  const distAB = Math.hypot(b[0] - a[0], b[1] - a[1]);
+                  const distToLine = Math.abs(
+                    (b[0] - a[0]) * (a[1] - py) - (a[0] - px) * (b[1] - a[1])
+                  ) / distAB;
+    
+                  if (distToLine < 0.00001) {
+                    await splitEdgeAtNode({
+                      body: {
+                        edgeId: edge.id,
+                        nodeId: existingNode.id,
+                        projectionPoint: projected,
+                      },
+                    }, { status: () => ({ json: () => {} }) });
+                    break;
+                  }
+                }
+              }
+            }
           }
         }
-      
       }
   
       res.json({ success: true, message: "Szobák frissítve!" });
@@ -184,13 +276,15 @@ async function getRooms (req, res) {
 
       // Node létrehozása
       if (center) {
+        const projected = await getNearestProjection(center[0], newRoom.floorId, prisma);
+        const finalCoord = projected ? [projected] : center;
         await prisma.node.create({
           data: {
             name: `${newRoom.name}_node`,
             type: "terem",
             floorId: newRoom.floorId,
             buildingId: newRoom.floor.buildingId,
-            coordinates: JSON.stringify(center),
+            coordinates: JSON.stringify(finalCoord),
             iconUrl: "school.svg",
           },
         });
