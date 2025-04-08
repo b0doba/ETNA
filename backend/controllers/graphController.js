@@ -1,3 +1,106 @@
+async function splitEdgeLogic({ edgeId, nodeId, projectionPoint }) {
+  const edge = await prisma.edge.findUnique({
+    where: { id: edgeId },
+  });
+  if (!edge) throw new Error("Edge nem található!");
+
+  const node = await prisma.node.findUnique({
+    where: { id: nodeId },
+  });
+  if (!node) throw new Error("Node nem található!");
+
+  const waypoints = edge.waypoints;
+
+  if (!edge.waypoints || edge.waypoints.length < 2) {
+    console.warn(`⚠️ Edge ${edgeId} érvénytelen (nincs elég waypoint) – split kihagyva.`);
+    return;
+  }
+
+  if (!waypoints || waypoints.length < 2) {
+    console.warn(`⚠️ Edge ${edgeId} érvénytelen (nincs elég waypoint) – split kihagyva.`);
+    return;
+  }
+
+  let splitIndex = -1;
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const a = waypoints[i];
+    const b = waypoints[i + 1];
+    if (isProjectionOnSegment(projectionPoint, a, b)) {
+      splitIndex = i;
+      break;
+    }
+  }
+
+  if (splitIndex === -1) {
+    console.warn(`⚠️ A node nem vetült érvényesen egyik szegmensre sem, split megszakítva.`);
+    return {
+      success: false,
+      message: "Nem történt split, projection nem illeszkedik egyik szegmensre sem.",
+    };
+  }
+
+  const fromSegment = [
+    ...waypoints.slice(0, splitIndex + 1),
+    projectionPoint,
+  ];
+  const toSegment = [
+    projectionPoint,
+    ...waypoints.slice(splitIndex + 1),
+  ];
+
+  if (fromSegment.length < 2 || toSegment.length < 2) {
+    console.warn(`⚠️ Split után érvénytelen edge keletkezne (pontból áll), művelet megszakítva.`);
+    return {
+      success: false,
+      message: "Split érvénytelen, túl rövid szakasz keletkezne.",
+    };
+  }
+
+
+  const edgeExists = await prisma.edge.findUnique({ where: { id: edgeId } });
+  if (edgeExists) {
+    await prisma.edge.delete({ where: { id: edgeId } });
+  } else {
+    console.warn(`⚠️ Törlés kihagyva: edge ${edgeId} már nem létezik.`);
+  }
+
+  const edge1 = await prisma.edge.create({
+    data: {
+      fromNodeId: edge.fromNodeId,
+      toNodeId: nodeId,
+      type: edge.type,
+      iconUrl: edge.iconUrl || null,
+      waypoints: fromSegment,
+      distance: calculateDistance(fromSegment[0], projectionPoint),
+    },
+  });
+
+  const edge2 = await prisma.edge.create({
+    data: {
+      fromNodeId: nodeId,
+      toNodeId: edge.toNodeId,
+      type: edge.type,
+      iconUrl: edge.iconUrl || null,
+      waypoints: toSegment,
+      distance: calculateDistance(projectionPoint, toSegment[toSegment.length - 1]),
+    },
+  });
+
+  await prisma.node.update({
+    where: { id: nodeId },
+    data: {
+      coordinates: JSON.stringify([projectionPoint]),
+    },
+  });
+
+  return {
+    success: true,
+    message: "Edge sikeresen megtörve és frissítve!",
+    edges: [edge1, edge2],
+  }; 
+}
+
+
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
@@ -204,7 +307,7 @@ async function updateEdge(req, res) {
 }
 
 function isProjectionOnSegment(p, a, b) {
-  const epsilon = 0.000000000001;
+  const epsilon = 0.0001;
   const total = calculateDistance(a, b);
   const d1 = calculateDistance(a, p);
   const d2 = calculateDistance(p, b);
@@ -213,72 +316,11 @@ function isProjectionOnSegment(p, a, b) {
 
 async function splitEdgeAtNode(req, res) {
   try {
-    const { edgeId, nodeId, projectionPoint } = req.body;
-
-    const edge = await prisma.edge.findUnique({
-      where: { id: edgeId },
-    });
-
-    if (!edge) return res.status(404).json({ error: "Edge nem található!" });
-
-    const node = await prisma.node.findUnique({
-      where: { id: nodeId },
-    });
-
-    if (!node) return res.status(404).json({ error: "Node nem található!" });
-
-    const waypoints = edge.waypoints;
-
-    // Vágjuk szét a waypointokat
-    const fromSegment = [];
-    const toSegment = [];
-
-    let inserted = false;
-    for (let i = 0; i < waypoints.length - 1; i++) {
-      const a = waypoints[i];
-      const b = waypoints[i + 1];
-      fromSegment.push(a);
-
-      // Ha a projekció az (a, b) szakaszra esett
-      const isOnSegment = isProjectionOnSegment(projectionPoint, a, b);
-      if (!inserted && isOnSegment) {
-        fromSegment.push(projectionPoint);
-        toSegment.push(projectionPoint);
-        inserted = true;
-      }
-    }
-    toSegment.push(...waypoints.slice(fromSegment.length - 1));
-
-    // Töröljük a régit
-    await prisma.edge.delete({ where: { id: edgeId } });
-
-    // Létrehozunk két új élt
-    await prisma.edge.create({
-      data: {
-        fromNodeId: edge.fromNodeId,
-        toNodeId: nodeId,
-        type: edge.type,
-        iconUrl: edge.iconUrl || null,
-        waypoints: fromSegment,
-        distance: calculateDistance(fromSegment[0], projectionPoint),
-      },
-    });
-
-    await prisma.edge.create({
-      data: {
-        fromNodeId: nodeId,
-        toNodeId: edge.toNodeId,
-        type: edge.type,
-        iconUrl: edge.iconUrl || null,
-        waypoints: toSegment,
-        distance: calculateDistance(projectionPoint, toSegment[toSegment.length - 1]),
-      },
-    });
-
-    res.json({ success: true, message: "Edge sikeresen megtörve és frissítve!" });
+    const result = await splitEdgeLogic(req.body);
+    res.json(result);
   } catch (error) {
-    console.error("🚨 splitEdgeAtNode hiba:", error);
-    res.status(500).json({ error: "Nem sikerült megtörni az edge-et." });
+    console.error("🚨 splitEdgeAtNode hiba:", error.message);
+    res.status(500).json({ error: error.message });
   }
 }
 
@@ -301,4 +343,4 @@ async function deleteEdge(req, res) {
   }
 }
 
-module.exports = { getNodes, createNode, updateNode, deleteNode, getEdges, createEdge, updateEdge, splitEdgeAtNode, deleteEdge };
+module.exports = { getNodes, createNode, updateNode, deleteNode, getEdges, createEdge, updateEdge, splitEdgeAtNode, splitEdgeLogic, deleteEdge };

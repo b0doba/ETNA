@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 const NavigationComponent = ({ start, end, map, clear }) => {
   const polylineRef = useRef(null);
+  
 
   useEffect(() => {
     if (clear && polylineRef.current) {
@@ -23,7 +24,9 @@ const NavigationComponent = ({ start, end, map, clear }) => {
 
 
         const nodes = await nodesRes.json();
-        const edges = await edgesRes.json();
+        const rawEdges = await edgesRes.json();
+        const edges = rawEdges.map(normalizeEdge);
+        const edgeMap = buildEdgeMap(edges);
 
         const graph = buildGraph(nodes, edges);
         const shortestPath = dijkstra(graph, start.id, end.id);
@@ -39,17 +42,28 @@ const NavigationComponent = ({ start, end, map, clear }) => {
           const fromId = shortestPath[i];
           const toId = shortestPath[i + 1];
 
-          const edge = edges.find(
-            (e) =>
-              (e.fromNodeId === fromId && e.toNodeId === toId) ||
-              (e.fromNodeId === toId && e.toNodeId === fromId)
-          );
+          const edgeKey = makeEdgeKey(fromId, toId);
+          const edge = edgeMap.get(edgeKey);
+          if (!edge) continue;
 
-          if (edge && edge.waypoints) {
-            edge.waypoints.forEach(([lng, lat]) => {
-              pathCoordinates.push({ lat, lng });
-            });
-          }
+          const fromNode = nodes.find((n) => n.id === fromId);
+          const toNode = nodes.find((n) => n.id === toId);
+          if (!fromNode || !toNode) continue;
+
+          const isForward = edge.fromNodeId === fromId;
+          const waypoints = isForward
+            ? edge.waypoints
+            : [...edge.waypoints].reverse();
+
+          const fromCoord = JSON.parse(fromNode.coordinates)[0];
+          pathCoordinates.push({ lat: fromCoord[1], lng: fromCoord[0] });
+
+          waypoints.forEach(([lng, lat]) => {
+            pathCoordinates.push({ lat, lng });
+          });
+
+          const toCoord = JSON.parse(toNode.coordinates)[0];
+          pathCoordinates.push({ lat: toCoord[1], lng: toCoord[0] });
         }
 
         if (polylineRef.current) {
@@ -78,6 +92,25 @@ const NavigationComponent = ({ start, end, map, clear }) => {
 
   return null;
 };
+
+function normalizeEdge(edge) {
+  try {
+    const fromCoord = JSON.parse(edge.fromNode.coordinates)[0];
+    const startWaypoint = edge.waypoints?.[0];
+    if (!startWaypoint || !fromCoord) return edge;
+
+    const [wLng, wLat] = startWaypoint;
+    const [fLng, fLat] = fromCoord;
+
+    const isForward =
+      Math.abs(wLng - fLng) < 1 &&
+      Math.abs(wLat - fLat) < 1;
+
+    return isForward ? edge : { ...edge, waypoints: [...edge.waypoints].reverse() };
+  } catch {
+    return edge;
+  }
+}
 
 function dijkstra(graph, startId, endId) {
   const distances = {};
@@ -119,16 +152,45 @@ function dijkstra(graph, startId, endId) {
 
 function buildGraph(nodes, edges) {
   const graph = {};
+
   nodes.forEach((node) => {
     graph[node.id] = [];
   });
 
   edges.forEach((edge) => {
-    graph[edge.fromNodeId].push({ node: edge.toNodeId, weight: edge.distance });
-    graph[edge.toNodeId].push({ node: edge.fromNodeId, weight: edge.distance }); // ha kétirányú
+    const { fromNodeId, toNodeId, distance } = edge;
+
+    if (!graph[fromNodeId] || !graph[toNodeId]) return;
+
+    // Csak akkor adjuk hozzá, ha distance > 0 és nincs már benne
+    if (distance > 0) {
+      if (!graph[fromNodeId].some(e => e.node === toNodeId)) {
+        graph[fromNodeId].push({ node: toNodeId, weight: distance });
+      }
+      if (!graph[toNodeId].some(e => e.node === fromNodeId)) {
+        graph[toNodeId].push({ node: fromNodeId, weight: distance });
+      }
+    }
   });
 
   return graph;
 }
+
+
+function buildEdgeMap(edges) {
+  const edgeMap = new Map();
+
+  edges.forEach((edge) => {
+    const key = makeEdgeKey(edge.fromNodeId, edge.toNodeId);
+    edgeMap.set(key, edge);
+  });
+
+  return edgeMap;
+}
+
+function makeEdgeKey(a, b) {
+  return `${Math.min(a, b)}-${Math.max(a, b)}`;
+}
+
 
 export default NavigationComponent;

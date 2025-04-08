@@ -16,28 +16,35 @@ const fetchGeoJSON = async (url) => {
 
 const MapComponent = () => {
   const navigate = useNavigate();
-  const mapContainer = useRef(null);
+
   const map = useRef(null);
+  const mapContainer = useRef(null);
+  const buildingsRef = useRef(null);
+  const allFloorsRef = useRef(null);
+
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [isBuildingView, setIsBuildingView] = useState(false);
   const [currentFloor, setCurrentFloor] = useState(null);
-  const buildingsRef = useRef(null);
-  const allFloorsRef = useRef(null);
-  const [highlightedRoom, setHighlightedRoom] = useState(null);
-  const [floorGroup, setFloorGroup] = useState(null); // gather mező
   const [availableFloorNumbers, setAvailableFloorNumbers] = useState([]);
+  const [floorGroup, setFloorGroup] = useState(null);
+
   const [startLocation, setStartLocation] = useState(null);
   const [endLocation, setEndLocation] = useState(null);
   const [nodes, setNodes] = useState([]);
+
   const [mapZoom, setMapZoom] = useState(18);
   const [mapCenter, setMapCenter] = useState({ lat: 47.693344, lng: 17.627529 });
+
   const [hudHidden, setHudHidden] = useState(false);
   const [clearRoute, setClearRoute] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [highlightedRoom, setHighlightedRoom] = useState(null);
+
   const toggleHUD = () => setHudHidden(prev => !prev);
+
   const handleGroupSelect = (group) => {
-    highlightBuilding(null, group); // A highlightBuilding-et hívjuk a kiválasztott csoportra
+    highlightBuilding(null, group);
   };
 
   useEffect(() => {
@@ -52,15 +59,9 @@ const MapComponent = () => {
 
         const nodesResponse = await fetch("http://localhost:5000/api/nodes");
 
-        if (!window.google || !window.google.maps) {
-          throw new Error("Google Maps API nem érhető el.");
-        }
-
         if (!mapContainer.current) {
           throw new Error("A térkép konténer nem található.");
         }
-
-        console.log("Térkép inicializálása...");
 
         const bounds = {
           north: mapCenter.lat + 0.2,
@@ -199,8 +200,6 @@ const MapComponent = () => {
             const buildingName = event.feature.getProperty("name");
             const gatherName = event.feature.getProperty("gather");
 
-            //console.log("Rákattintott épület:", buildingName);
-
             if (!gatherName) {
               console.warn("Nincs 'gather' mező ehhez az épülethez:", buildingName);
               return;
@@ -208,11 +207,6 @@ const MapComponent = () => {
             setIsBuildingView(true);
             setSelectedBuilding(buildingName);
             setFloorGroup(gatherName);
-        
-            console.log("Összes floor.features (épületnévvel):", floors.features.map(f => ({
-              floorNumber: f.properties.number,
-              building: f.properties.building
-            })));
             
             // Kiválasztott épület szintjeinek lekérése
             const floorsInGroup  = floors.features
@@ -224,29 +218,11 @@ const MapComponent = () => {
                 const buildingGather = cleanGather(relatedBuilding?.properties?.gather);
                 const match = buildingGather === cleanGather(gatherName);
                 
-                if (!match) {
-                  console.log(`Kihagyott floor: épület = ${floor.properties.building}, nincs gather egyezés (${buildingGather} ≠ ${gatherName})`);
-                }
-                console.log("Kiválasztott csoporthoz tartozó emeletek (gather alapján):");
-                
                 return match;
 
-                
               })
               .sort((a, b) => a.properties.number - b.properties.number); // Szintek sorrendbe állítása
 
-              console.log("Kiválasztott csoporthoz tartozó emeletek (gather alapján):");
-              floorsInGroup.forEach(f => {
-                const relatedBuilding = buildings.features.find(b => b.properties.name.trim() === f.properties.building.trim());
-                const buildingGather = relatedBuilding?.properties?.gather?.replace(/"/g, "").trim();
-                console.log(`épület: ${f.properties.building}, szint: ${f.properties.number}, gather: ${buildingGather}`);
-              });
-            
-            //console.log("Az összes szint az API válaszból:", floors.features);
-            console.log("Kiválasztott csoporthoz tartozó emeletek:", floorsInGroup.map(f => ({
-              floorNumber: f.properties.number,
-              building: f.properties.building
-            })));
 
             const uniqueFloorNumbers = [...new Set(floorsInGroup.map(f => f.properties.number))].sort((a, b) => a - b);
             console.log("Elérhető szintszámok a sliderhez:", uniqueFloorNumbers);
@@ -255,8 +231,6 @@ const MapComponent = () => {
 
             const buildingFeature = buildings.features.find(
               (feature) => feature.properties.name === buildingName);
-
-            console.log("Kiválasztott épület belülről: ",buildingFeature.geometry.coordinates);
 
             if (buildingFeature) {
               try {
@@ -294,65 +268,13 @@ const MapComponent = () => {
         });
 
         map.current.addListener("click", (event) => {
-            setSelectedBuilding(null);
-            setIsBuildingView(false);
-            setCurrentFloor(null);
-            setHighlightedRoom(null);
-            setMapZoom(18);
-            setFloorGroup(null);
-        });
-
-        nodesData.forEach((node) => {
-          if (node.coordinates) {
-            const [lng, lat] = JSON.parse(node.coordinates)[0];
-        
-            /*const iconDiv = document.createElement("div");
-            iconDiv.style.position = "absolute";
-            iconDiv.style.width = "24px";
-            iconDiv.style.height = "24px";
-            iconDiv.style.opacity = "0.3";
-
-            if(node.iconUrl) {
-              const img = document.createElement("img");
-              img.src = `/assets/icons/${node.iconUrl}`; 
-              img.style.width = "12px";
-              img.style.height = "12px";
-              iconDiv.appendChild(img);
-            }
-        
-            const overlay = new window.google.maps.OverlayView();
-            overlay.onAdd = function () {
-              const panes = this.getPanes();
-              panes.overlayImage.appendChild(iconDiv);
-            ;}
-            overlay.draw = function () {
-              const projection = this.getProjection();
-              const position = projection.fromLatLngToDivPixel(new window.google.maps.LatLng(lat, lng));
-              const zoom = map.current.getZoom();
-
-              const baseSize = 7;
-              const scale = 1 / Math.pow(2, zoom - 18);
-              let size = baseSize / scale;
-
-              // Limitáljuk a méretet 6 és 14 pixel közé
-              size = Math.max(6, Math.min(size, 14));
-              const img = iconDiv.querySelector("img")
-              if (img) {
-              iconDiv.style.left = position.x - size / 2 + "px";
-              iconDiv.style.top = position.y - size / 2 + "px";
-              img.style.width = size + "px";
-              img.style.height = size + "px";
-              }
-            };
-            overlay.onRemove = function () {
-              if (iconDiv.parentNode) {
-                iconDiv.parentNode.removeChild(iconDiv);
-              }
-            };
-        
-            overlay.setMap(map.current);*/
-          }
-        });
+          setSelectedBuilding(null);
+          setIsBuildingView(false);
+          setCurrentFloor(null);
+          setHighlightedRoom(null);
+          setMapZoom(18);
+          setFloorGroup(null);
+      });
 
         console.log("Térkép sikeresen inicializálva!");
         setLoading(false);
@@ -468,49 +390,49 @@ const MapComponent = () => {
         }
         return { visible: false }; // Csak az épületek látszódjanak
     });
-};
+    };
   
-const highlightRoom = async (room) => {
-  if (!map.current || !room) return;
+  const highlightRoom = async (room) => {
+    if (!map.current || !room) return;
 
-  const buildingName = room.floor.building.name;
-  const buildingGather = buildingsRef.current?.features?.find(
-    b => b.properties.name.trim() === buildingName.trim()
-  )?.properties?.gather?.replace(/"/g, "").trim();
+    const buildingName = room.floor.building.name;
+    const buildingGather = buildingsRef.current?.features?.find(
+      b => b.properties.name.trim() === buildingName.trim()
+    )?.properties?.gather?.replace(/"/g, "").trim();
 
-  if (!buildingGather) {
-    console.warn("Nincs 'gather' mező a szoba épületéhez:", buildingName);
-    return;
-  }
+    if (!buildingGather) {
+      console.warn("Nincs 'gather' mező a szoba épületéhez:", buildingName);
+      return;
+    }
 
-  // Állítsuk be a belső nézetet és a kapcsolódó adatokat
-  setIsBuildingView(true);
-  setSelectedBuilding(buildingName);
-  setFloorGroup(buildingGather);
-  setCurrentFloor(room.floor.number);
-  setHighlightedRoom(room);
-  setMapZoom(19);
+    // Állítsuk be a belső nézetet és a kapcsolódó adatokat
+    setIsBuildingView(true);
+    setSelectedBuilding(buildingName);
+    setFloorGroup(buildingGather);
+    setCurrentFloor(room.floor.number);
+    setHighlightedRoom(room);
+    setMapZoom(19);
 
-  // Visszakeressük az összes emeletet, ami a gather csoporthoz tartozik
-  const floorsInGroup = allFloorsRef.current?.features
-    ?.filter(floor => {
-      const relatedBuilding = buildingsRef.current?.features?.find(b => b.properties.name.trim() === floor.properties.building.trim());
-      const gather = relatedBuilding?.properties?.gather?.replace(/"/g, "").trim();
-      return gather === buildingGather;
-    })
-    ?.sort((a, b) => a.properties.number - b.properties.number);
+    // Visszakeressük az összes emeletet, ami a gather csoporthoz tartozik
+    const floorsInGroup = allFloorsRef.current?.features
+      ?.filter(floor => {
+        const relatedBuilding = buildingsRef.current?.features?.find(b => b.properties.name.trim() === floor.properties.building.trim());
+        const gather = relatedBuilding?.properties?.gather?.replace(/"/g, "").trim();
+        return gather === buildingGather;
+      })
+      ?.sort((a, b) => a.properties.number - b.properties.number);
 
-  const uniqueFloors = [...new Set(floorsInGroup?.map(f => f.properties.number))];
-  setAvailableFloorNumbers(uniqueFloors);
+    const uniqueFloors = [...new Set(floorsInGroup?.map(f => f.properties.number))];
+    setAvailableFloorNumbers(uniqueFloors);
 
-  // Középpont beállítása
-  const coordinates = JSON.parse(room.coordinates);
-  const bounds = new window.google.maps.LatLngBounds();
-  coordinates.forEach(([lng, lat]) => bounds.extend(new window.google.maps.LatLng(lat, lng)));
-  setTimeout(() => {
-    map.current.fitBounds(bounds, 100);
-  }, 300);
-};
+    // Középpont beállítása
+    const coordinates = JSON.parse(room.coordinates);
+    const bounds = new window.google.maps.LatLngBounds();
+    coordinates.forEach(([lng, lat]) => bounds.extend(new window.google.maps.LatLng(lat, lng)));
+    setTimeout(() => {
+      map.current.fitBounds(bounds, 100);
+    }, 300);
+  };
 
   const handleRouteSearch = async (startName, endName) => { //működik
     try {
@@ -533,6 +455,18 @@ const highlightRoom = async (room) => {
       if (!startNode || !endNode) {
         alert("Nem található megfelelő kezdő vagy célpont.");
         return;
+      }
+
+      if (dataStart.buildings?.[0]) {
+        highlightBuilding(dataStart.buildings[0], null, true, false); // start: fókusz van
+      } else if (dataStart.rooms?.[0]) {
+        await highlightRoom(dataStart.rooms[0], true, false); // start szoba: fókusz van
+      }
+      
+      if (dataEnd.buildings?.[0]) {
+        highlightBuilding(dataEnd.buildings[0], null, false, true); // end: nincs fókusz
+      } else if (dataEnd.rooms?.[0]) {
+        await highlightRoom(dataEnd.rooms[0], false, true); // end szoba: nincs fókusz
       }
   
       // Állítsuk be a NavigationComponent-hez szükséges értékeket

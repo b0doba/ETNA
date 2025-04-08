@@ -17,7 +17,7 @@ const loadGoogleMapsScript = () => {
       return;
     }
 
-    console.log("Google Maps API betöltése...");
+    //console.log("Google Maps API betöltése...");
 
     // Globális callback létrehozása
     window.initGoogleMaps = () => {

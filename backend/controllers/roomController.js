@@ -1,5 +1,5 @@
 const haversine = require("haversine-distance");
-const { splitEdgeAtNode } = require("./graphController");
+const { splitEdgeLogic } = require("./graphController");
 
 function projectPointToSegment(p, a, b) {
   const [px, py] = p;
@@ -21,24 +21,27 @@ function getDistance(p1, p2) {
   return haversine({ lat: p1[1], lng: p1[0] }, { lat: p2[1], lng: p2[0] });
 }
 
-async function getNearestProjection(point, floorId, prisma) {
+async function getNearestProjection(point, buildingId, floorId, prisma) {
   const edges = await prisma.edge.findMany({
     where: { type: "hallway" },
     include: {
       fromNode: true,
       toNode: true,
-    }
+    },
   });
 
   let minDistance = Infinity;
   let bestPoint = null;
 
   for (const edge of edges) {
-    if (!edge.waypoints || !edge.fromNode || !edge.toNode) continue;
-
-    if (edge.fromNode.floorId !== floorId || edge.toNode.floorId !== floorId) continue;
-
+    
+    if (!edge.fromNode || !edge.toNode) {
+      console.warn(`⛔ Hiányzó kapcsolódó node az edge ${edge.id} esetén.`);
+      continue;
+    }
+    
     const waypoints = edge.waypoints;
+    if (!waypoints || waypoints.length < 2) continue;
 
     for (let i = 0; i < waypoints.length - 1; i++) {
       const a = waypoints[i];
@@ -53,9 +56,9 @@ async function getNearestProjection(point, floorId, prisma) {
       }
     }
   }
-
   return bestPoint;
 }
+
 
 
 const { PrismaClient } = require("@prisma/client");
@@ -171,7 +174,7 @@ async function getRooms (req, res) {
             },
           });
 
-          const projected = await getNearestProjection(center[0], existingRoom.floorId, prisma);
+          const projected = await getNearestProjection(center[0], existingRoom.floorId, existingRoom.buildingId, prisma);
           const finalCoord = projected ? [projected] : center;
   
           if (existingNode) {
@@ -186,30 +189,65 @@ async function getRooms (req, res) {
             if (projected) {
               const hallwayEdges = await prisma.edge.findMany({
                 where: { type: "hallway" },
+                include: {
+                  fromNode: true,
+                  toNode: true,
+                },
               });
     
               for (const edge of hallwayEdges) {
                 const waypoints = edge.waypoints;
+                if (!waypoints || waypoints.length < 2) {
+                  console.warn(`⚠️ Edge ${edge.id} kihagyva, mert nem érvényes (waypoints < 2)`);
+                  continue;
+                }
+                const isOnWaypoint = waypoints.some(
+                  wp => getDistance(wp, projected) < 0.2
+                );
+                if (isOnWaypoint) {
+                  console.log(`🔁 A node projectionja már egy waypointon ül (edgeId=${edge.id}), split kihagyva.`);
+                  continue;
+                }
+
                 for (let i = 0; i < waypoints.length - 1; i++) {
                   const a = waypoints[i];
                   const b = waypoints[i + 1];
-    
                   const [px, py] = projected;
+    
                   const distAB = Math.hypot(b[0] - a[0], b[1] - a[1]);
                   const distToLine = Math.abs(
                     (b[0] - a[0]) * (a[1] - py) - (a[0] - px) * (b[1] - a[1])
                   ) / distAB;
     
-                  if (distToLine < 0.00001) {
-                    await splitEdgeAtNode({
-                      body: {
+                  if (distToLine < 0.0001) {
+                    const alreadyExists = await prisma.edge.findFirst({
+                      where: {
+                        type: "hallway",
+                        OR: [
+                          {
+                            fromNodeId: existingNode.id,
+                            toNodeId: edge.fromNodeId,
+                          },
+                          {
+                            fromNodeId: edge.fromNodeId,
+                            toNodeId: existingNode.id,
+                          },
+                        ],
+                      },
+                    });
+            
+                    if (!alreadyExists) {
+                      await splitEdgeLogic({
                         edgeId: edge.id,
                         nodeId: existingNode.id,
                         projectionPoint: projected,
-                      },
-                    }, { status: () => ({ json: () => {} }) });
-                    break;
+                      });
+                    } else {
+                      console.log(`⛔ Már létezik hallway edge a node-hoz (${existingNode.id}), kihagyva a splitet.`);
+                    }                    
+                      break;
                   }
+                  console.log(`📐 distToLine számítás: ${distToLine} (edgeId=${edge.id})`);
                 }
               }
             }
@@ -276,8 +314,8 @@ async function getRooms (req, res) {
 
       // Node létrehozása
       if (center) {
-        const projected = await getNearestProjection(center[0], newRoom.floorId, prisma);
-        const finalCoord = projected ? [projected] : center;
+        //const projected = await getNearestProjection(center[0], newRoom.floorId, prisma);
+        const finalCoord = center;
         await prisma.node.create({
           data: {
             name: `${newRoom.name}_node`,
@@ -297,7 +335,7 @@ async function getRooms (req, res) {
     }
   }
 
-  async function deleteRoom (req, res) {
+  async function deleteRoom(req, res) {
     try {
       const { id } = req.params;
   
@@ -316,14 +354,34 @@ async function getRooms (req, res) {
         return res.status(404).json({ error: "A szoba nem található!" });
       }
   
+      // Node törlése, ha van ilyen nevű node
+      const nodeName = `${room.name}_node`;
+      const node = await prisma.node.findFirst({
+        where: {
+          name: nodeName,
+          floorId: room.floorId,
+          type: "terem",
+        },
+      });
+  
+      if (node) {
+        await prisma.node.delete({
+          where: { id: node.id },
+        });
+        console.log(`🗑️ Node "${nodeName}" törölve (ID: ${node.id})`);
+      } else {
+        console.log(`⚠️ Node "${nodeName}" nem található, nem történt törlés.`);
+      }
+  
       // Szoba törlése
       await prisma.room.delete({ where: { id: roomId } });
   
-      res.status(200).json({ success: true, message: "Szoba sikeresen törölve!" });
+      res.status(200).json({ success: true, message: "Szoba és node sikeresen törölve!" });
     } catch (error) {
       console.error("🚨 Hiba a szoba törlésekor:", error);
       res.status(500).json({ error: "Nem sikerült törölni a szobát." });
     }
   }
+  
 
   module.exports = { getRooms, updateRooms, createRooms, deleteRoom};
