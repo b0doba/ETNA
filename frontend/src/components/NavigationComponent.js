@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const NavigationComponent = ({ start, end, map, clear }) => {
+const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingView, floors }) => {
   const polylineRef = useRef(null);
   
 
@@ -12,7 +12,7 @@ const NavigationComponent = ({ start, end, map, clear }) => {
   }, [clear]);
 
   useEffect(() => {
-    const fetchAndDrawPath = async () => {
+    const fetchAndDrawPath = async () => {      
       
       if (!start || !end || !map) return;
 
@@ -22,11 +22,36 @@ const NavigationComponent = ({ start, end, map, clear }) => {
           fetch("http://localhost:5000/api/edges"),
         ]);
 
-
         const nodes = await nodesRes.json();
         const rawEdges = await edgesRes.json();
-        const edges = rawEdges.map(normalizeEdge);
-        const edgeMap = buildEdgeMap(edges);
+
+        const edges = rawEdges.map((edge) => ({
+          ...normalizeEdge(edge),
+          fromNode: edge.fromNode,
+          toNode: edge.toNode
+        }));
+
+        const getFloorNumberById = (floorId) => {
+          const floor = floors.find(f => f.properties?.id === floorId);
+          return floor?.properties?.number ?? null;
+        };
+
+        const filteredEdges = edges.filter(edge => {
+          const fromFloor = getFloorNumberById(edge.fromNode?.floorId);
+          const toFloor = getFloorNumberById(edge.toNode?.floorId);
+        
+          if (isBuildingView) {
+            return (
+              edge.type === "hallway" &&
+              (fromFloor === currentFloor || toFloor === currentFloor)
+            );
+        
+                  } else {
+            return edge.type === "path";
+          }
+        });
+
+        const edgeMap = buildEdgeMap(filteredEdges);
 
         const graph = buildGraph(nodes, edges);
         const shortestPath = dijkstra(graph, start.id, end.id);
@@ -85,6 +110,7 @@ const NavigationComponent = ({ start, end, map, clear }) => {
       } catch (error) {
         console.error("Hiba az útvonal kiszámításakor:", error);
       }
+
     };
 
     fetchAndDrawPath();
@@ -191,6 +217,8 @@ function buildEdgeMap(edges) {
 function makeEdgeKey(a, b) {
   return `${Math.min(a, b)}-${Math.max(a, b)}`;
 }
+
+
 
 
 export default NavigationComponent;

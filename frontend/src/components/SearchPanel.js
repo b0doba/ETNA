@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import "../App.css";
 
-const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hudHidden  }) => {
+const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hudHidden, delHighlight  }) => {
   const [showRouteInputs, setShowRouteInputs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [startPoint, setStartPoint] = useState("");
@@ -15,6 +15,9 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
 
   useEffect(() => {
     const fetchSuggestions = async (query) => {
+
+      
+      
       if (!query.trim()) {
         setSuggestions([]);
         return;
@@ -48,6 +51,12 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
     if (activeInput === "destination") fetchSuggestions(destination);
 
   }, [searchQuery, startPoint, destination, activeInput]);
+
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      delHighlight();
+    }
+  }, [searchQuery, delHighlight]);
   
   // Keresési funkció az útvonalhoz
   const handleRouteSearch = () => {
@@ -80,7 +89,6 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
 
   return (
     <>
-    {/* Kategória gombok az oldal tetején */}
     <div className={`category-buttons ${hudHidden ? 'hidden' : ''}`}>
         <button className="category-btn" onClick={() => onGroupSelect("Kollégiumok")}>Kollégiumok</button>
         <button className="category-btn" onClick={() => onGroupSelect("Sportcsarnokok")}>Sportcsarnokok</button>
@@ -88,7 +96,6 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
         <button className="category-btn" onClick={() => onGroupSelect("Tanulmányi épületek")}>Tanulmányi Épületek</button>
         <button className="category-btn">Rendezvények</button>
       </div>
-      {/* Keresőpanel */}
       <div className={`search-panel ${hudHidden ? 'hidden' : ''}`}>
       {!showRouteInputs ? (
         <div className="search-bar">
@@ -138,7 +145,7 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
             <button className="search-btn" onClick={handleSearch}>
               <img src={searchIcon} alt="Keresés" />
             </button>
-          <button className="route-btn" onClick={() => setShowRouteInputs(true)}>
+          <button className="route-btn" onClick={() => {setShowRouteInputs(true); delHighlight();}}>
             <img src={routeIcon} alt="Útvonaltervezés" />
           </button>
         </div>
