@@ -143,10 +143,10 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
               )}
             </div>
             <button className="search-btn" onClick={handleSearch}>
-              <img src={searchIcon} alt="Keresés" />
+              <img src={searchIcon} alt="Keresés" title="Keresés"/>
             </button>
           <button className="route-btn" onClick={() => {setShowRouteInputs(true); delHighlight();}}>
-            <img src={routeIcon} alt="Útvonaltervezés" />
+            <img src={routeIcon} alt="Útvonaltervezés" title="Útvonaltervezés" />
           </button>
         </div>
       ) : (

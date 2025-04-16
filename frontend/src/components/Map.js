@@ -56,6 +56,7 @@ const MapComponent = () => {
       setSearchHighlightedRoom(null);
       setSearchHighlightedBuilding(null);
     } else {
+      setIsBuildingView(false);
       setSelectedGroup(group);
       highlightSearchBuilding(null, group); // kiemelés beállítása
     }
@@ -83,10 +84,10 @@ const MapComponent = () => {
         }
 
         const bounds = {
-          north: mapCenter.lat + 0.2,
-          south: mapCenter.lat - 0.2,
-          east: mapCenter.lng + 0.5,
-          west: mapCenter.lng - 0.5,
+          north: mapCenter.lat + 0.1,
+          south: mapCenter.lat - 0.1,
+          east: mapCenter.lng + 0.25,
+          west: mapCenter.lng - 0.25,
         };
 
         map.current = new window.google.maps.Map(mapContainer.current, {
@@ -94,7 +95,7 @@ const MapComponent = () => {
           mapTypeControl: false,
           zoom: mapZoom,
           center:  mapCenter,
-          minZoom: 14,
+          minZoom: 15,
           fullscreenControl: false,
           restriction: {
             latLngBounds: bounds,
@@ -112,108 +113,6 @@ const MapComponent = () => {
             },
           ],
         });
-
-        /*const addGeoJSONToMap = (geoJson) => {
-          map.current.data.addGeoJson(geoJson);
-        
-          map.current.data.setStyle((feature) => {
-            const category = feature.getProperty("category");
-            const featureName = feature.getProperty("name");
-            const buildingName = feature.getProperty("building");
-            const floorNumber = feature.getProperty("number");
-            const roomFloor = feature.getProperty("floor");
-            const featureGroup = feature.getProperty("group");
-
-            const isSearchHighlighted = searchHighlightedRoom && featureName === searchHighlightedRoom.name.trim();
-            const isRouteStart = routeHighlightedRooms.start && featureName === routeHighlightedRooms.start.name.trim();
-            const isRouteEnd = routeHighlightedRooms.end && featureName === routeHighlightedRooms.end.name.trim();
-
-            if ((isSearchHighlighted || isRouteStart || isRouteEnd) && roomFloor === currentFloor) {
-              return {
-                fillColor: isSearchHighlighted ? "blue" : isRouteStart ? "blue" : "blue",
-                strokeColor: "black",
-                strokeWeight: 3,
-                visible: true,
-              };
-            }
-        
-            // Kiemelt szoba
-            if (searchHighlightedRoom && category === "room" && featureName?.trim() === searchHighlightedRoom.name.trim()) {
-              return {
-                fillColor: "blue",
-                strokeColor: "black",
-                strokeWeight: 3,
-                visible: roomFloor === currentFloor,
-              };
-            }
-        
-            // Belső nézet logika gather alapján (building -> gather)
-            if (isBuildingView && (category === "floor" || category === "room")) {
-              const relatedBuilding = buildings.features.find(
-                (b) => b.properties.name.trim() === buildingName?.trim()
-              );
-              const buildingGather = relatedBuilding?.properties?.gather?.replace(/"/g, "").trim();
-              const currentGather = floorGroup?.replace(/"/g, "").trim();
-        
-              if (buildingGather === currentGather) {
-                if (category === "floor" && floorNumber === currentFloor) {
-                  return {
-                    fillColor: "lightgray",
-                    strokeColor: "black",
-                    strokeWeight: 1,
-                    visible: true,
-                  };
-                }
-        
-                if (category === "room" && roomFloor === currentFloor) {
-                  return {
-                    fillColor: "gray",
-                    strokeColor: "black",
-                    strokeWeight: 1,
-                    visible: true,
-                  };
-                }
-        
-                return { visible: false }; // Nem aktuális szint
-              }
-            }
-
-            if (!isBuildingView && category === "building") {
-              const isSearchHighlighted =
-              searchHighlightedBuilding &&
-              (
-                (searchHighlightedBuilding.name && featureName === searchHighlightedBuilding.name) ||
-                (!searchHighlightedBuilding.name && searchHighlightedBuilding.group && featureGroup === searchHighlightedBuilding.group)
-              );
-              const isRouteStart = routeHighlightedBuildings.start && featureName === routeHighlightedBuildings.start.name;
-              const isRouteEnd = routeHighlightedBuildings.end && featureName === routeHighlightedBuildings.end.name;
-            
-              let fillColor = "gray";
-              let strokeWeight = 1;
-            
-              if (isSearchHighlighted) {
-                fillColor = "blue";
-                strokeWeight = 2;
-              } else if (isRouteStart) {
-                fillColor = "blue";
-                strokeWeight = 2;
-              } else if (isRouteEnd) {
-                fillColor = "blue";
-                strokeWeight = 2;
-              }
-            
-              return {
-                fillColor,
-                strokeColor: "black",
-                strokeWeight,
-                visible: true,
-              };
-            }
-        
-            // Minden más rejtve
-            return { visible: false };
-          });
-        };*/
 
         const addGeoJSONToMap = (geoJson) => {
           map.current.data.addGeoJson(geoJson);
@@ -405,7 +304,7 @@ const MapComponent = () => {
       return {
         fillColor: "blue",
         strokeColor: "black",
-        strokeWeight: 3,
+        strokeWeight: 0.1,
         visible: true,
       };
     }
@@ -423,7 +322,7 @@ const MapComponent = () => {
         return {
           fillColor: "lightgray",
           strokeColor: "black",
-          strokeWeight: 1,
+          strokeWeight: 0,
           visible: true,
         };
       }
@@ -432,7 +331,7 @@ const MapComponent = () => {
         return {
           fillColor: "gray",
           strokeColor: "black",
-          strokeWeight: 1,
+          strokeWeight: 0,
           visible: true,
         };
       }
@@ -454,14 +353,14 @@ const MapComponent = () => {
       const isGroupHighlighted = selectedGroup && clean(featureGroup) === clean(selectedGroup);
   
       let fillColor = "gray";
-      let strokeWeight = 1;
+      let strokeWeight = 0;
   
       if (isSearchHighlighted || isGroupHighlighted) {
         fillColor = "blue";
-        strokeWeight = 3;
+        strokeWeight = 0.1;
       } else if (isRouteStart || isRouteEnd) {
         fillColor = "blue";
-        strokeWeight = 3;
+        strokeWeight = 0.1;
       }
   
       return {
@@ -474,110 +373,6 @@ const MapComponent = () => {
   
     return { visible: false };
   };
-
-  /*useEffect(() => {
-    if (!map.current) return;
-
-    map.current.data.setStyle(null);
-    
-    map.current.data.setStyle((feature) => {
-      const category = feature.getProperty("category");
-      const featureName = feature.getProperty("name");
-      const buildingName = feature.getProperty("building");
-      const floorNumber = feature.getProperty("number");
-      const roomFloor = feature.getProperty("floor");
-      const featureGroup = feature.getProperty("group");
-
-      const isSearchHighlighted = searchHighlightedRoom && featureName === searchHighlightedRoom.name.trim();
-      const isRouteStart = routeHighlightedRooms.start && featureName === routeHighlightedRooms.start.name.trim();
-      const isRouteEnd = routeHighlightedRooms.end && featureName === routeHighlightedRooms.end.name.trim();
-
-      if ((isSearchHighlighted || isRouteStart || isRouteEnd) && roomFloor === currentFloor) {
-        return {
-          fillColor: "blue",
-          strokeColor: "black",
-          strokeWeight: 3,
-          visible: true,
-        };
-      }
-
-      if (isBuildingView && (category === "floor" || category === "room")) {
-        const relatedBuilding = buildingsRef.current?.features?.find(
-          b => b.properties.name.trim() === buildingName?.trim()
-        );
-        const buildingGather = relatedBuilding?.properties?.gather?.replace(/"/g, "").trim();
-        const currentGather = floorGroup?.replace(/"/g, "").trim();
-    
-        if (buildingGather !== currentGather) {
-          return { visible: false };
-        }
-    
-        if (category === "floor" && floorNumber === currentFloor) {
-          return {
-            visible: true,
-            fillColor: "lightgray",
-            strokeColor: "black",
-            strokeWeight: 1,
-          };
-        }
-    
-        if (category === "room" && roomFloor === currentFloor) {
-          return {
-            visible: true,
-            fillColor: "gray",
-            strokeColor: "black",
-            strokeWeight: 1,
-          };
-        }
-    
-        return { visible: false };
-      }
-      
-      if (!isBuildingView && category === "building") {
-        const clean = str => (str || "").replace(/"/g, "").trim();
-
-        const isSearchHighlighted =
-          searchHighlightedBuilding &&
-          (
-            (searchHighlightedBuilding.name && clean(featureName) === clean(searchHighlightedBuilding.name)) ||
-            (!searchHighlightedBuilding.name && searchHighlightedBuilding.group && clean(featureGroup) === clean(searchHighlightedBuilding.group))
-          );
-  
-        const isRouteStart =
-          routeHighlightedBuildings.start && featureName === routeHighlightedBuildings.start.name;
-        const isRouteEnd =
-          routeHighlightedBuildings.end && featureName === routeHighlightedBuildings.end.name;
-
-        const isGroupHighlighted = selectedGroup && clean(featureGroup) === clean(selectedGroup);
-
-        let fillColor = "gray";
-        let strokeWeight = 1;
-  
-        if (isSearchHighlighted || isGroupHighlighted) {
-          fillColor = "blue";
-          strokeWeight = 3;
-        } else if (isRouteStart || isRouteEnd) {
-          fillColor = "blue";
-          strokeWeight = 3;
-        }
-  
-        return {
-          fillColor,
-          strokeColor: "black",
-          strokeWeight,
-          visible: true,
-        };
-      }
-        return { visible: false };
-    });
-
-  }, [searchHighlightedBuilding,
-    routeHighlightedBuildings,
-    searchHighlightedRoom,
-    routeHighlightedRooms,
-    isBuildingView,
-    currentFloor,
-    floorGroup, selectedGroup]);*/
   
   const handleSearch = async (query) => {
     if (!query.trim()) return;
@@ -621,7 +416,9 @@ const MapComponent = () => {
       coordinates.forEach(([lng, lat]) =>
         bounds.extend(new window.google.maps.LatLng(lat, lng))
       );
-      map.current.fitBounds(bounds, 120);
+      setTimeout(() => {
+        map.current.fitBounds(bounds, 100);
+      },200)
     }
   
     else if (group) {
@@ -655,7 +452,9 @@ const MapComponent = () => {
       if (count > 0) {
         const center = { lat: latSum / count, lng: lngSum / count };
         map.current.panTo(center);
-        map.current.fitBounds(bounds, 280);
+        setTimeout(()=> {
+          map.current.fitBounds(bounds, 200);
+        },200)
       }
   
       setSearchHighlightedBuilding({ name: null, group });
@@ -675,7 +474,17 @@ const MapComponent = () => {
     coordinates.forEach(([lng, lat]) =>
       bounds.extend(new window.google.maps.LatLng(lat, lng))
     );
-    map.current.fitBounds(bounds, 120);
+    if (isStart) {
+      setIsBuildingView(false);
+      //setSelectedBuilding(null);
+      const bounds = new window.google.maps.LatLngBounds();
+      coordinates.forEach(([lng, lat]) =>
+        bounds.extend(new window.google.maps.LatLng(lat, lng))
+      );
+      setTimeout(() => {
+        map.current.fitBounds(bounds, 100);
+      },200)
+    }
   };
 
     const focusOnBuilding = (buildingName, gatherName) => {
@@ -773,7 +582,7 @@ const MapComponent = () => {
     coordinates.forEach(([lng, lat]) => bounds.extend(new window.google.maps.LatLng(lat, lng)));
     setTimeout(() => {
       map.current.fitBounds(bounds, 100);
-    }, 300);
+    },200)
   };
 
   const highlightRouteRoom = async (room, isStart = false) => {
@@ -816,9 +625,16 @@ const MapComponent = () => {
     const coordinates = JSON.parse(room.coordinates);
     const bounds = new window.google.maps.LatLngBounds();
     coordinates.forEach(([lng, lat]) => bounds.extend(new window.google.maps.LatLng(lat, lng)));
-    setTimeout(() => {
-      map.current.fitBounds(bounds, 100);
-    }, 300);
+    if (isStart) {
+      setIsBuildingView(true);
+      const bounds = new window.google.maps.LatLngBounds();
+      coordinates.forEach(([lng, lat]) =>
+        bounds.extend(new window.google.maps.LatLng(lat, lng))
+      );
+      setTimeout(() => {
+        map.current.fitBounds(bounds, 100);
+      },200)
+    }
   };
 
   const handleRouteSearch = async (startName, endName) => { //működik
@@ -903,7 +719,19 @@ const MapComponent = () => {
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
       
       {isBuildingView && availableFloorNumbers.length > 0 && (
-        <div className="slider-container">
+        <div className="slider-container"
+          onWheel={(e) => {
+            e.preventDefault();
+            const currentIndex = availableFloorNumbers.indexOf(currentFloor);
+            const delta = Math.sign(e.deltaY);
+            let newIndex = currentIndex - delta;
+        
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex >= availableFloorNumbers.length) newIndex = availableFloorNumbers.length - 1;
+        
+            setCurrentFloor(availableFloorNumbers[newIndex]);
+          }}
+        >
           <p className="slider-label">Szint: {currentFloor}</p>
           <input
             type="range"
