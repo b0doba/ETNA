@@ -235,7 +235,7 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
                 </ul>
               )}
             </div>
-          <button className="route-btn search-route-btn" onClick={handleRouteSearch}>
+          <button className="route-btn search-route-btn" onClick={() => {onCancelRoute();handleRouteSearch();}}>
             Útvonaltervezés
           </button>
           <button className="route-btn" onClick={() => {

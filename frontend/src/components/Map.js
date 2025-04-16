@@ -113,7 +113,7 @@ const MapComponent = () => {
           ],
         });
 
-        const addGeoJSONToMap = (geoJson) => {
+        /*const addGeoJSONToMap = (geoJson) => {
           map.current.data.addGeoJson(geoJson);
         
           map.current.data.setStyle((feature) => {
@@ -130,7 +130,7 @@ const MapComponent = () => {
 
             if ((isSearchHighlighted || isRouteStart || isRouteEnd) && roomFloor === currentFloor) {
               return {
-                fillColor: isSearchHighlighted ? "red" : isRouteStart ? "blue" : "blue",
+                fillColor: isSearchHighlighted ? "blue" : isRouteStart ? "blue" : "blue",
                 strokeColor: "black",
                 strokeWeight: 3,
                 visible: true,
@@ -140,7 +140,7 @@ const MapComponent = () => {
             // Kiemelt szoba
             if (searchHighlightedRoom && category === "room" && featureName?.trim() === searchHighlightedRoom.name.trim()) {
               return {
-                fillColor: "red",
+                fillColor: "blue",
                 strokeColor: "black",
                 strokeWeight: 3,
                 visible: roomFloor === currentFloor,
@@ -192,7 +192,7 @@ const MapComponent = () => {
               let strokeWeight = 1;
             
               if (isSearchHighlighted) {
-                fillColor = "red";
+                fillColor = "blue";
                 strokeWeight = 2;
               } else if (isRouteStart) {
                 fillColor = "blue";
@@ -213,6 +213,11 @@ const MapComponent = () => {
             // Minden más rejtve
             return { visible: false };
           });
+        };*/
+
+        const addGeoJSONToMap = (geoJson) => {
+          map.current.data.addGeoJson(geoJson);
+          map.current.data.setStyle(getFeatureStyle);
         };
 
         addGeoJSONToMap(buildings, "building");
@@ -373,36 +378,185 @@ const MapComponent = () => {
 
   useEffect(() => {
     if (!map.current) return;
+    map.current.data.setStyle(getFeatureStyle);
+  }, [searchHighlightedBuilding,
+      routeHighlightedBuildings,
+      searchHighlightedRoom,
+      routeHighlightedRooms,
+      isBuildingView,
+      currentFloor,
+      floorGroup,
+      selectedGroup,
+  ]);
+
+  const getFeatureStyle = (feature) => {
+    const category = feature.getProperty("category");
+    const featureName = feature.getProperty("name");
+    const buildingName = feature.getProperty("building");
+    const floorNumber = feature.getProperty("number");
+    const roomFloor = feature.getProperty("floor");
+    const featureGroup = feature.getProperty("group");
+  
+    const isSearchHighlighted = searchHighlightedRoom && featureName === searchHighlightedRoom.name.trim();
+    const isRouteStart = routeHighlightedRooms.start && featureName === routeHighlightedRooms.start.name.trim();
+    const isRouteEnd = routeHighlightedRooms.end && featureName === routeHighlightedRooms.end.name.trim();
+  
+    if ((isSearchHighlighted || isRouteStart || isRouteEnd) && roomFloor === currentFloor) {
+      return {
+        fillColor: "blue",
+        strokeColor: "black",
+        strokeWeight: 3,
+        visible: true,
+      };
+    }
+  
+    if (isBuildingView && (category === "floor" || category === "room")) {
+      const relatedBuilding = buildingsRef.current?.features?.find(
+        (b) => b.properties.name.trim() === buildingName?.trim()
+      );
+      const buildingGather = relatedBuilding?.properties?.gather?.replace(/"/g, "").trim();
+      const currentGather = floorGroup?.replace(/"/g, "").trim();
+  
+      if (buildingGather !== currentGather) return { visible: false };
+  
+      if (category === "floor" && floorNumber === currentFloor) {
+        return {
+          fillColor: "lightgray",
+          strokeColor: "black",
+          strokeWeight: 1,
+          visible: true,
+        };
+      }
+  
+      if (category === "room" && roomFloor === currentFloor) {
+        return {
+          fillColor: "gray",
+          strokeColor: "black",
+          strokeWeight: 1,
+          visible: true,
+        };
+      }
+  
+      return { visible: false };
+    }
+  
+    if (!isBuildingView && category === "building") {
+      const clean = str => (str || "").replace(/"/g, "").trim();
+      const isSearchHighlighted =
+        searchHighlightedBuilding &&
+        (
+          (searchHighlightedBuilding.name && clean(featureName) === clean(searchHighlightedBuilding.name)) ||
+          (!searchHighlightedBuilding.name && searchHighlightedBuilding.group && clean(featureGroup) === clean(searchHighlightedBuilding.group))
+        );
+  
+      const isRouteStart = routeHighlightedBuildings.start && featureName === routeHighlightedBuildings.start.name;
+      const isRouteEnd = routeHighlightedBuildings.end && featureName === routeHighlightedBuildings.end.name;
+      const isGroupHighlighted = selectedGroup && clean(featureGroup) === clean(selectedGroup);
+  
+      let fillColor = "gray";
+      let strokeWeight = 1;
+  
+      if (isSearchHighlighted || isGroupHighlighted) {
+        fillColor = "blue";
+        strokeWeight = 3;
+      } else if (isRouteStart || isRouteEnd) {
+        fillColor = "blue";
+        strokeWeight = 3;
+      }
+  
+      return {
+        fillColor,
+        strokeColor: "black",
+        strokeWeight,
+        visible: true,
+      };
+    }
+  
+    return { visible: false };
+  };
+
+  /*useEffect(() => {
+    if (!map.current) return;
+
+    map.current.data.setStyle(null);
     
     map.current.data.setStyle((feature) => {
       const category = feature.getProperty("category");
       const featureName = feature.getProperty("name");
+      const buildingName = feature.getProperty("building");
+      const floorNumber = feature.getProperty("number");
+      const roomFloor = feature.getProperty("floor");
       const featureGroup = feature.getProperty("group");
 
-  
+      const isSearchHighlighted = searchHighlightedRoom && featureName === searchHighlightedRoom.name.trim();
+      const isRouteStart = routeHighlightedRooms.start && featureName === routeHighlightedRooms.start.name.trim();
+      const isRouteEnd = routeHighlightedRooms.end && featureName === routeHighlightedRooms.end.name.trim();
+
+      if ((isSearchHighlighted || isRouteStart || isRouteEnd) && roomFloor === currentFloor) {
+        return {
+          fillColor: "blue",
+          strokeColor: "black",
+          strokeWeight: 3,
+          visible: true,
+        };
+      }
+
+      if (isBuildingView && (category === "floor" || category === "room")) {
+        const relatedBuilding = buildingsRef.current?.features?.find(
+          b => b.properties.name.trim() === buildingName?.trim()
+        );
+        const buildingGather = relatedBuilding?.properties?.gather?.replace(/"/g, "").trim();
+        const currentGather = floorGroup?.replace(/"/g, "").trim();
+    
+        if (buildingGather !== currentGather) {
+          return { visible: false };
+        }
+    
+        if (category === "floor" && floorNumber === currentFloor) {
+          return {
+            visible: true,
+            fillColor: "lightgray",
+            strokeColor: "black",
+            strokeWeight: 1,
+          };
+        }
+    
+        if (category === "room" && roomFloor === currentFloor) {
+          return {
+            visible: true,
+            fillColor: "gray",
+            strokeColor: "black",
+            strokeWeight: 1,
+          };
+        }
+    
+        return { visible: false };
+      }
+      
       if (!isBuildingView && category === "building") {
+        const clean = str => (str || "").replace(/"/g, "").trim();
+
         const isSearchHighlighted =
           searchHighlightedBuilding &&
           (
-            (searchHighlightedBuilding.name && featureName === searchHighlightedBuilding.name) ||
-            (!searchHighlightedBuilding.name && searchHighlightedBuilding.group && featureGroup === searchHighlightedBuilding.group)
+            (searchHighlightedBuilding.name && clean(featureName) === clean(searchHighlightedBuilding.name)) ||
+            (!searchHighlightedBuilding.name && searchHighlightedBuilding.group && clean(featureGroup) === clean(searchHighlightedBuilding.group))
           );
   
         const isRouteStart =
           routeHighlightedBuildings.start && featureName === routeHighlightedBuildings.start.name;
         const isRouteEnd =
           routeHighlightedBuildings.end && featureName === routeHighlightedBuildings.end.name;
-  
+
+        const isGroupHighlighted = selectedGroup && clean(featureGroup) === clean(selectedGroup);
+
         let fillColor = "gray";
         let strokeWeight = 1;
   
-        if (isSearchHighlighted) {
-          fillColor = "red";
-          strokeWeight = 3;
-        } else if (isRouteStart) {
+        if (isSearchHighlighted || isGroupHighlighted) {
           fillColor = "blue";
           strokeWeight = 3;
-        } else if (isRouteEnd) {
+        } else if (isRouteStart || isRouteEnd) {
           fillColor = "blue";
           strokeWeight = 3;
         }
@@ -414,11 +568,16 @@ const MapComponent = () => {
           visible: true,
         };
       }
-        
-        
         return { visible: false };
     });
-  }, [searchHighlightedBuilding, routeHighlightedBuildings, isBuildingView]);
+
+  }, [searchHighlightedBuilding,
+    routeHighlightedBuildings,
+    searchHighlightedRoom,
+    routeHighlightedRooms,
+    isBuildingView,
+    currentFloor,
+    floorGroup, selectedGroup]);*/
   
   const handleSearch = async (query) => {
     if (!query.trim()) return;
@@ -499,11 +658,9 @@ const MapComponent = () => {
         map.current.fitBounds(bounds, 280);
       }
   
-      // trükk: ideiglenes state, hogy a setStyle újrarajzolódjon
       setSearchHighlightedBuilding({ name: null, group });
     }
   };
-  
   
   const highlightRouteBuilding = (building, isStart = false) => {
     if (!map.current || !building) return;
@@ -686,7 +843,7 @@ const MapComponent = () => {
         alert("Nem található megfelelő kezdő vagy célpont.");
         return;
       }
-
+      
       if (dataStart.buildings?.[0]) {
         highlightRouteBuilding(dataStart.buildings[0], true);
       } else if (dataStart.rooms?.[0]) {
@@ -742,7 +899,7 @@ const MapComponent = () => {
         floors={allFloorsRef.current?.features}
       />
       {loading && <p>Betöltés...</p>}
-      {error && <p style={{ color: "red" }}>Hiba történt: {error}</p>}
+      {error && <p style={{ color: "blue" }}>Hiba történt: {error}</p>}
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
       
       {isBuildingView && availableFloorNumbers.length > 0 && (
