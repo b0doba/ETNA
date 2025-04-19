@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import SearchPanel from "./SearchPanel.js";
 import loadGoogleMapsScript from "./loadGoogleMap";
 import NavigationComponent from "./NavigationComponent";
+import Map3DControls from "./Map3DControls";
+
 
 const fetchGeoJSON = async (url) => {
   try {
@@ -22,6 +24,11 @@ const MapComponent = () => {
   const buildingsRef = useRef(null);
   const allFloorsRef = useRef(null);
   const roomsRef = useRef(null);
+
+  const [currentMapId, setCurrentMapId] = useState("538b561c396b44f6");
+  const [is3DView, setIs3DView] = useState(false);
+  const MAP_ID_2D = "538b561c396b44f6";
+  const MAP_ID_3D = "5d7ea9da5f5e03b3";
 
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [isBuildingView, setIsBuildingView] = useState(false);
@@ -66,6 +73,11 @@ const MapComponent = () => {
     const initMap = async () => {
       try {
         await loadGoogleMapsScript();
+
+        /*const [{ Map, RenderingType }] = await Promise.all([
+          window.google.maps.importLibrary("maps")
+        ]);*/
+
         const [buildings,rooms, floors] = await Promise.all([
           fetchGeoJSON("http://localhost:5000/api/buildings"),
           fetchGeoJSON("http://localhost:5000/api/rooms"),
@@ -93,31 +105,26 @@ const MapComponent = () => {
         map.current = new window.google.maps.Map(mapContainer.current, {
           streetViewControl: false,
           mapTypeControl: false,
+          heading: is3DView ? 45 : 0,
+          tilt: is3DView ? 45 : 0,
+          mapId: currentMapId,
+          mapTypeId: "roadmap",
           zoom: mapZoom,
-          center:  mapCenter,
+          center: mapCenter,
           minZoom: 15,
           fullscreenControl: false,
           restriction: {
             latLngBounds: bounds,
-            strictBounds: true,},
-          styles: [
-            {
-              featureType: "poi",
-              elementType: "labels",
-              stylers: [{ visibility: "off" }],
-            },
-            {
-              featureType: "landscape",
-              elementType: "labels",
-              stylers: [{ visibility: "off" }],
-            },
-          ],
+            strictBounds: true,
+          },
         });
 
         const addGeoJSONToMap = (geoJson) => {
           map.current.data.addGeoJson(geoJson);
           map.current.data.setStyle(getFeatureStyle);
         };
+
+        window._currentMapInstance = map.current;
 
         addGeoJSONToMap(buildings, "building");
         addGeoJSONToMap(floors, "floor");
@@ -273,7 +280,7 @@ const MapComponent = () => {
       navigate("/map", { replace: true });
     }
 
-  }, [navigate, isBuildingView, currentFloor, selectedBuilding, searchHighlightedRoom, mapZoom, mapCenter, floorGroup]);
+  }, [navigate, isBuildingView, currentFloor, selectedBuilding, searchHighlightedRoom, mapZoom, mapCenter, floorGroup, currentMapId]);
 
   useEffect(() => {
     if (!map.current) return;
@@ -705,6 +712,10 @@ const MapComponent = () => {
         setSearchHighlightedBuilding(null);
       }}
       />
+      <Map3DControls onToggle3D={(new3DState) => {
+        setIs3DView(new3DState);
+        setCurrentMapId(new3DState ? MAP_ID_3D : MAP_ID_2D);
+      }} />
       <NavigationComponent
         start={startLocation}
         end={endLocation}
