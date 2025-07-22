@@ -691,31 +691,38 @@ const MapComponent = () => {
   };
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100vh" }}>
-    <button className="toggle-hud-btn" onClick={toggleHUD}>
-      {hudHidden ? '▶' : '◀'}
-    </button>
-    <SearchPanel
-      hudHidden={hudHidden}
-      onSearch={handleSearch}
-      onRouteSearch={handleRouteSearch}
-      onGroupSelect={handleGroupSelect}
-      onCancelRoute={() => {
-        setStartLocation(null);
-        setEndLocation(null);
-        setClearRoute(true);
-        setRouteHighlightedRooms({ start: null, end: null });
-        setRouteHighlightedBuildings({ start: null, end: null });
-      }}
-      delHighlight={() => {
-        setSearchHighlightedRoom(null);
-        setSearchHighlightedBuilding(null);
-      }}
+    <div style={{ width: "100%", height: "100vh" }}>
+    <button className="info-btn"
+      onClick={() => navigate("/info")}
+      title="Információ"
+    >
+      <img
+        src="/assets/icons/information.svg"
+        alt="Információ"
       />
-      <Map3DControls onToggle3D={(new3DState) => {
-        setIs3DView(new3DState);
-        setCurrentMapId(new3DState ? MAP_ID_3D : MAP_ID_2D);
-      }} />
+    </button>
+    <div className="top-ui-wrapper">
+      <button className="toggle-hud-btn" onClick={toggleHUD}>
+        {hudHidden ? '▶' : '◀'}
+      </button>
+      <SearchPanel
+        hudHidden={hudHidden}
+        onSearch={handleSearch}
+        onRouteSearch={handleRouteSearch}
+        onGroupSelect={handleGroupSelect}
+        onCancelRoute={() => {
+          setStartLocation(null);
+          setEndLocation(null);
+          setClearRoute(true);
+          setRouteHighlightedRooms({ start: null, end: null });
+          setRouteHighlightedBuildings({ start: null, end: null });
+        }}
+        delHighlight={() => {
+          setSearchHighlightedRoom(null);
+          setSearchHighlightedBuilding(null);
+        }}
+        />
+      </div>
       <NavigationComponent
         start={startLocation}
         end={endLocation}
@@ -755,7 +762,12 @@ const MapComponent = () => {
           />
         </div>
       )}
+      <Map3DControls onToggle3D={(new3DState) => {
+        setIs3DView(new3DState);
+        setCurrentMapId(new3DState ? MAP_ID_3D : MAP_ID_2D);
+      }} />
     </div>
+    
   );
 };
 

@@ -1,0 +1,35 @@
+.info-page {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: Arial, sans-serif;
+  }
+  
+  .info-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  
+  .back-button {
+    background: #f0f0f0;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .info-content p {
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+  
+  .info-content ul {
+    padding-left: 20px;
+  }
+  
+  .info-content li {
+    margin-bottom: 8px;
+  }

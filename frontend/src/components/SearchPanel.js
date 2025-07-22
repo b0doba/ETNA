@@ -12,7 +12,7 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
   const [activeInput, setActiveInput] = useState("search");
   const searchIcon = "/assets/icons/arrow.svg";
   const routeIcon =  "/assets/icons/pitch.svg";
-
+  
   useEffect(() => {
     const fetchSuggestions = async (query) => {
 
@@ -89,14 +89,7 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
 
   return (
     <>
-    <div className={`category-buttons ${hudHidden ? 'hidden' : ''}`}>
-        <button className="category-btn" onClick={() => onGroupSelect("Kollégiumok")}>Kollégiumok</button>
-        <button className="category-btn" onClick={() => onGroupSelect("Sportcsarnokok")}>Sportcsarnokok</button>
-        <button className="category-btn" onClick={() => onGroupSelect("Parkolók")}>Parkolók</button>
-        <button className="category-btn" onClick={() => onGroupSelect("Tanulmányi épületek")}>Tanulmányi Épületek</button>
-        <button className="category-btn">Rendezvények</button>
-      </div>
-      <div className={`search-panel ${hudHidden ? 'hidden' : ''}`}>
+    <div className={`search-panel ${hudHidden ? 'hidden' : ''}`}>
       {!showRouteInputs ? (
         <div className="search-bar">
           <div className="autocomplete">
@@ -245,6 +238,15 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
         </div>
       )}
       <p className="description">Írd le hova szeretnél menni!</p>
+    </div>
+    <div className={`category-buttons-wrapper ${hudHidden ? 'hidden' : ''}`}>
+      <div className="category-buttons">
+        <button className="category-btn" onClick={() => onGroupSelect("Kollégiumok")}>Kollégiumok</button>
+        <button className="category-btn" onClick={() => onGroupSelect("Sportcsarnokok")}>Sportcsarnokok</button>
+        <button className="category-btn" onClick={() => onGroupSelect("Parkolók")}>Parkolók</button>
+        <button className="category-btn" onClick={() => onGroupSelect("Tanulmányi épületek")}>Tanulmányi Épületek</button>
+        <button className="category-btn">Rendezvények</button>
+      </div>
     </div>
     </>
   );

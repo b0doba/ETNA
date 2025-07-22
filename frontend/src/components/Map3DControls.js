@@ -19,7 +19,7 @@ const Map3DControls = ({ onToggle3D }) => {
   return (
     <div className="map-3d-controls">
       <button className={`map-3d-btn ${is3DView ? "active" : ""}`} onClick={handleToggle}>
-        {is3DView ? "3D (DEMO)" : "3D (DEMO)"}
+        {is3DView ? "2D Nézet" : "3D Nézet"}
       </button>
 
       {is3DView && (
