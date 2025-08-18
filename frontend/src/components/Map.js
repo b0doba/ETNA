@@ -24,6 +24,7 @@ const MapComponent = () => {
   const buildingsRef = useRef(null);
   const allFloorsRef = useRef(null);
   const roomsRef = useRef(null);
+  const [mapReady, setMapReady] = useState(false);
 
   const [currentMapId, setCurrentMapId] = useState("538b561c396b44f6");
   const [is3DView, setIs3DView] = useState(false);
@@ -69,14 +70,50 @@ const MapComponent = () => {
     }
   };
 
+  const overlaysRef = useRef([]);
+  const infoWindowRef = useRef(null);
+  const dataListenersSetRef = useRef(false);
+  const mapListenersRef = useRef([]);
+
   useEffect(() => {
     const initMap = async () => {
-      try {
-        await loadGoogleMapsScript();
+      await loadGoogleMapsScript();
 
-        /*const [{ Map, RenderingType }] = await Promise.all([
-          window.google.maps.importLibrary("maps")
-        ]);*/
+      const bounds = {
+        north: mapCenter.lat + 0.1,
+        south: mapCenter.lat - 0.1,
+        east: mapCenter.lng + 0.25,
+        west: mapCenter.lng - 0.25,
+      };
+
+      map.current = new window.google.maps.Map(mapContainer.current, {
+        mapId: currentMapId,
+        center: mapCenter,
+        zoom: mapZoom,
+        minZoom: 15,
+        streetViewControl: false,
+        mapTypeControl: false,
+        fullscreenControl: false,
+        tilt: is3DView ? 45 : 0,
+        heading: is3DView ? 45 : 0,
+        restriction: { latLngBounds: bounds, strictBounds: true },
+      });
+
+      window._currentMapInstance = map.current;
+
+      console.log("Map példány létrehozva");
+      setMapReady(true);
+    };
+
+    initMap();
+}, []); // << csak egyszer fusson
+
+
+  useEffect(() => {
+    if (!mapReady || !map.current) return;
+    const loadData = async () => {
+      try {
+        // await loadGoogleMapsScript();
 
         const [buildings,rooms, floors] = await Promise.all([
           fetchGeoJSON("http://localhost:5000/api/buildings"),
@@ -95,36 +132,36 @@ const MapComponent = () => {
           throw new Error("A térkép konténer nem található.");
         }
 
-        const bounds = {
-          north: mapCenter.lat + 0.1,
-          south: mapCenter.lat - 0.1,
-          east: mapCenter.lng + 0.25,
-          west: mapCenter.lng - 0.25,
-        };
+        // const bounds = {
+        //   north: mapCenter.lat + 0.1,
+        //   south: mapCenter.lat - 0.1,
+        //   east: mapCenter.lng + 0.25,
+        //   west: mapCenter.lng - 0.25,
+        // };
 
-        map.current = new window.google.maps.Map(mapContainer.current, {
-          streetViewControl: false,
-          mapTypeControl: false,
-          heading: is3DView ? 45 : 0,
-          tilt: is3DView ? 45 : 0,
-          mapId: currentMapId,
-          mapTypeId: "roadmap",
-          zoom: mapZoom,
-          center: mapCenter,
-          minZoom: 15,
-          fullscreenControl: false,
-          restriction: {
-            latLngBounds: bounds,
-            strictBounds: true,
-          },
-        });
+        // map.current = new window.google.maps.Map(mapContainer.current, {
+        //   streetViewControl: false,
+        //   mapTypeControl: false,
+        //   heading: is3DView ? 45 : 0,
+        //   tilt: is3DView ? 45 : 0,
+        //   mapId: currentMapId,
+        //   mapTypeId: "roadmap",
+        //   zoom: mapZoom,
+        //   center: mapCenter,
+        //   minZoom: 15,
+        //   fullscreenControl: false,
+        //   restriction: {
+        //     latLngBounds: bounds,
+        //     strictBounds: true,
+        //   },
+        // });
 
         const addGeoJSONToMap = (geoJson) => {
           map.current.data.addGeoJson(geoJson);
           map.current.data.setStyle(getFeatureStyle);
         };
 
-        window._currentMapInstance = map.current;
+        // window._currentMapInstance = map.current;
 
         addGeoJSONToMap(buildings, "building");
         addGeoJSONToMap(floors, "floor");
@@ -136,52 +173,61 @@ const MapComponent = () => {
         allFloorsRef.current = floors;
         roomsRef.current = rooms;
 
-        const infoWindow = new window.google.maps.InfoWindow();
+        overlaysRef.current.forEach((ov) => ov.setMap(null));
+        overlaysRef.current = [];
 
-        map.current.data.addListener("mouseover", (event) => {
-          let displayText = event.feature.getProperty("name") || "Nincs név"; // Alapértelmezett
-          const content = `
-            <div class="custom-info-window">
-              <div class="info-title">${displayText}</div>
-            </div> `
-          ;
+        map.current.data.forEach((f) => map.current.data.remove(f));
+        map.current.data.addGeoJson(buildings);
+        map.current.data.addGeoJson(floors);
+        map.current.data.addGeoJson(rooms);
+        map.current.data.setStyle(getFeatureStyle);
 
-          infoWindow.setContent(content);
-          infoWindow.setPosition(event.latLng);
-          infoWindow.open(map.current);
-        });
-        
-        setTimeout(() => {
-          document.querySelector(".gm-ui-hover-effect")?.remove();
-        }, 100);
+        // InfoWindow singleton
+        if (!infoWindowRef.current) {
+          infoWindowRef.current = new window.google.maps.InfoWindow();
+        }
 
-        map.current.data.addListener("mouseout", () => {
-          infoWindow.close();
-        });
+        // DATA LISTENEREK CSAK EGYSZER
+        if (!dataListenersSetRef.current) {
+          const data = map.current.data;
+          const infoWindow = infoWindowRef.current;
 
-        map.current.data.addListener("click", (event) => {
-          const category = event.feature.getProperty("category");
-        
-          if (category === "building") {
-            const buildingName = event.feature.getProperty("name");
-            const gatherName = event.feature.getProperty("gather");
+          data.addListener("mouseover", (event) => {
+            const displayText = event.feature.getProperty("name") || "Nincs név";
+            const content = `
+              <div class="custom-info-window">
+                <div class="info-title">${displayText}</div>
+              </div>`;
+            infoWindow.setContent(content);
+            infoWindow.setPosition(event.latLng);
+            infoWindow.open(map.current);
+          });
 
-            if (!gatherName) {
-              console.warn("Nincs 'gather' mező ehhez az épülethez:", buildingName);
-              return;
+          data.addListener("mouseout", () => infoWindow.close());
+
+          data.addListener("click", (event) => {
+            const category = event.feature.getProperty("category");
+            if (category === "building") {
+              const buildingName = event.feature.getProperty("name");
+              const gatherName = event.feature.getProperty("gather");
+              if (gatherName) focusOnBuilding(buildingName, gatherName);
             }
+          });
 
-            focusOnBuilding(buildingName, gatherName);
-          }
-        });
+          // Map click is csak egyszer:
+          mapListenersRef.current.push(
+            map.current.addListener("click", () => {
+              setSelectedBuilding(null);
+              setIsBuildingView(false);
+              setCurrentFloor(null);
+              setMapZoom(18);
+              setFloorGroup(null);
+            })
+          );
 
-        map.current.addListener("click", (event) => {
-          setSelectedBuilding(null);
-          setIsBuildingView(false);
-          setCurrentFloor(null);
-          setMapZoom(18);
-          setFloorGroup(null);
-      });
+          dataListenersSetRef.current = true;
+        }
+
 
       nodesData.forEach((node) => {
 
@@ -220,6 +266,7 @@ const MapComponent = () => {
           };
           overlay.draw = function () {
             const projection = this.getProjection();
+            if (!projection) return; 
             const position = projection.fromLatLngToDivPixel(new window.google.maps.LatLng(lat, lng));
           
             if (currentZoom >= 17) {
@@ -263,6 +310,8 @@ const MapComponent = () => {
           };
       
           overlay.setMap(map.current);
+
+          overlaysRef.current.push(overlay);
         }
       });
 
@@ -274,13 +323,14 @@ const MapComponent = () => {
       }
     };
     
-    initMap();
+    loadData();
 
     if (window.location.pathname === "/") {
       navigate("/map", { replace: true });
     }
 
-  }, [navigate, isBuildingView, currentFloor, selectedBuilding, searchHighlightedRoom, mapZoom, mapCenter, floorGroup, currentMapId]);
+  }, [navigate, isBuildingView, currentFloor, selectedBuilding, searchHighlightedRoom, mapZoom, mapCenter, floorGroup, currentMapId, mapReady]);
+
 
   useEffect(() => {
     if (!map.current) return;
