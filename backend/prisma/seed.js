@@ -16,7 +16,7 @@ async function main() {
       ]),
     },
   });
-  console.log("✅ Épület sikeresen feltöltve:", building);
+  console.log("Épület sikeresen feltöltve:", building);
 }
 
 main()
