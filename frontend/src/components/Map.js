@@ -26,6 +26,9 @@ const MapComponent = () => {
   const roomsRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
 
+  const buildingLabelOverlaysRef = useRef(new Map());
+  const buildingLabelZoomListenerRef = useRef(null);
+
   const [currentMapId, setCurrentMapId] = useState("538b561c396b44f6");
   const [is3DView, setIs3DView] = useState(false);
   const MAP_ID_2D = "538b561c396b44f6";
@@ -181,6 +184,12 @@ const MapComponent = () => {
         map.current.data.addGeoJson(floors);
         map.current.data.addGeoJson(rooms);
         map.current.data.setStyle(getFeatureStyle);
+
+        if (!isBuildingView) {
+          renderBuildingShortLabels();
+        } else {
+          clearBuildingShortLabels();
+        }
 
         // InfoWindow singleton
         if (!infoWindowRef.current) {
@@ -345,6 +354,21 @@ const MapComponent = () => {
       selectedGroup,
   ]);
 
+  useEffect(() => {
+    if (!mapReady || !map.current) return;
+
+    if (!isBuildingView) {
+      renderBuildingShortLabels();
+    } else {
+      clearBuildingShortLabels();
+    }
+
+    return () => {
+      // takarítás, ha a komponens unmountol
+      clearBuildingShortLabels();
+    };
+  }, [isBuildingView, selectedGroup, mapReady, currentMapId]);
+
   const getFeatureStyle = (feature) => {
     const category = feature.getProperty("category");
     const featureName = feature.getProperty("name");
@@ -379,7 +403,7 @@ const MapComponent = () => {
         return {
           fillColor: "lightgray",
           strokeColor: "black",
-          strokeWeight: 0,
+          strokeWeight: 1,
           visible: true,
         };
       }
@@ -410,7 +434,7 @@ const MapComponent = () => {
       const isGroupHighlighted = selectedGroup && clean(featureGroup) === clean(selectedGroup);
   
       let fillColor = "gray";
-      let strokeWeight = 0;
+      let strokeWeight = 0.1;
   
       if (isSearchHighlighted || isGroupHighlighted) {
         fillColor = "blue";
@@ -430,6 +454,156 @@ const MapComponent = () => {
   
     return { visible: false };
   };
+
+  // Poligon bounds-középpont számítás
+  const getFeatureCenterLatLng = (feature) => {
+    const geom = feature.getGeometry();
+    if (!geom) return null;
+
+    const bounds = new window.google.maps.LatLngBounds();
+
+    const addPathToBounds = (path) => {
+      for (let i = 0; i < path.getLength(); i++) {
+        bounds.extend(path.getAt(i));
+      }
+    };
+
+    const walkGeometry = (g) => {
+      const t = g.getType();
+      if (t === "Polygon") {
+        const p = g.getAt(0);
+        if (p) addPathToBounds(p);
+      } else if (t === "MultiPolygon") {
+        for (let i = 0; i < g.getLength(); i++) {
+          const poly = g.getAt(i);
+          const p = poly.getAt(0);
+          if (p) addPathToBounds(p);
+        }
+      } else if (t === "GeometryCollection") {
+        for (let i = 0; i < g.getLength(); i++) {
+          walkGeometry(g.getAt(i));
+        }
+      }
+    };
+
+    walkGeometry(geom);
+    if (bounds.isEmpty()) return null;
+    return bounds.getCenter();
+  };
+
+  // A felirat szövege (shortName > névből rövidítés)
+  const getBuildingLabelText = (feature) => {
+    const shortName = (feature.getProperty("shortName") || "").trim();
+    if (shortName) return shortName;
+
+    const name = (feature.getProperty("name") || "").trim();
+    if (!name) return "";
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+  };
+
+  // Egy épület címkéjének létrehozása/frissítése
+  const createOrUpdateBuildingLabel = (feature) => {
+    if (!map.current) return;
+
+    const labelText = getBuildingLabelText(feature);
+    if (!labelText) return;
+
+    const center = getFeatureCenterLatLng(feature);
+    if (!center) return;
+
+    const key = feature.getProperty("id") ?? feature.getProperty("name");
+    if (!key) return;
+
+    let overlay = buildingLabelOverlaysRef.current.get(key);
+    let labelDiv;
+
+    if (!overlay) {
+      labelDiv = document.createElement("div");
+      labelDiv.className = "building-shortname-label";
+      labelDiv.style.position = "absolute";
+      labelDiv.style.transform = "translate(-50%, -50%)";
+      labelDiv.style.pointerEvents = "none";
+      labelDiv.style.fontWeight = "600";
+      labelDiv.style.letterSpacing = "0.5px";
+      labelDiv.style.textShadow = "0 0 3px rgba(255,255,255,0.8)";
+      labelDiv.style.color = "#000";
+      labelDiv.style.opacity = "0.5";
+      labelDiv.style.whiteSpace = "nowrap";
+      labelDiv.style.userSelect = "none";
+      labelDiv.innerText = labelText;
+
+      overlay = new window.google.maps.OverlayView();
+      overlay.onAdd = function () {
+        const panes = this.getPanes();
+        panes.overlayMouseTarget.appendChild(labelDiv);
+      };
+      overlay.draw = function () {
+        const proj = this.getProjection();
+        if (!proj) return;
+        const pos = proj.fromLatLngToDivPixel(center);
+        labelDiv.style.left = `${pos.x}px`;
+        labelDiv.style.top  = `${pos.y}px`;
+        const z = map.current.getZoom() ?? 18;
+        const clamped = Math.max(16, Math.min(22, z));
+        const base = 18; // px
+        const size = base + (clamped - 18) * 3; // 18px -> ~36px
+        labelDiv.style.fontSize = `${size}px`;
+        const op = 0.35 + (clamped - 16) * 0.05; // 0.35–0.65
+        labelDiv.style.opacity = `${Math.max(0.25, Math.min(0.7, op))}`;
+      };
+      overlay.onRemove = function () {
+        if (labelDiv.parentNode) labelDiv.parentNode.removeChild(labelDiv);
+      };
+      overlay.setMap(map.current);
+
+      buildingLabelOverlaysRef.current.set(key, overlay);
+    } else {
+      overlay.draw && overlay.draw();
+    }
+  };
+
+  // Összes épület rövidnév címkéjének kirajzolása (külső nézet)
+  const renderBuildingShortLabels = () => {
+    if (!map.current) return;
+
+    // töröljük a régieket, hogy ne duplikálódjon
+    buildingLabelOverlaysRef.current.forEach((ov) => ov.setMap(null));
+    buildingLabelOverlaysRef.current.clear();
+
+    map.current.data.forEach((feature) => {
+      if (feature.getProperty("category") === "building") {
+        if (!isBuildingView) {
+          const clean = (s) => (s || "").replace(/"/g, "").trim();
+          if (selectedGroup) {
+            const fg = clean(feature.getProperty("group"));
+            if (fg !== clean(selectedGroup)) return;
+          }
+          createOrUpdateBuildingLabel(feature);
+        }
+      }
+    });
+
+    if (buildingLabelZoomListenerRef.current) {
+      window.google.maps.event.removeListener(buildingLabelZoomListenerRef.current);
+      buildingLabelZoomListenerRef.current = null;
+    }
+    buildingLabelZoomListenerRef.current = map.current.addListener("zoom_changed", () => {
+      buildingLabelOverlaysRef.current.forEach((ov) => ov.draw && ov.draw());
+    });
+  };
+
+  // Címkék eltakarítása
+  const clearBuildingShortLabels = () => {
+    buildingLabelOverlaysRef.current.forEach((ov) => ov.setMap(null));
+    buildingLabelOverlaysRef.current.clear();
+    if (buildingLabelZoomListenerRef.current) {
+      window.google.maps.event.removeListener(buildingLabelZoomListenerRef.current);
+      buildingLabelZoomListenerRef.current = null;
+    }
+  };
+
   
   const handleSearch = async (query) => {
     if (!query.trim()) return;
@@ -812,10 +986,10 @@ const MapComponent = () => {
           />
         </div>
       )}
-      <Map3DControls onToggle3D={(new3DState) => {
+      {/* <Map3DControls onToggle3D={(new3DState) => {
         setIs3DView(new3DState);
         setCurrentMapId(new3DState ? MAP_ID_3D : MAP_ID_2D);
-      }} />
+      }} /> */}
     </div>
     
   );
