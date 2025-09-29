@@ -62,6 +62,9 @@ const MapComponent = () => {
   const toggleHUD = () => setHudHidden(prev => !prev);
 
   const handleGroupSelect = (group) => {
+    
+    if (startLocation || endLocation) cancelRoute();
+
     if (selectedGroup === group) {
       setSelectedGroup(null);
       setSearchHighlightedRoom(null);
@@ -338,7 +341,7 @@ const MapComponent = () => {
       navigate("/map", { replace: true });
     }
 
-  }, [navigate, isBuildingView, currentFloor, selectedBuilding, searchHighlightedRoom, mapZoom, mapCenter, floorGroup, currentMapId, mapReady]);
+  }, [navigate, isBuildingView, currentFloor, selectedBuilding, searchHighlightedRoom, floorGroup, currentMapId, mapReady]);
 
 
   useEffect(() => {
@@ -368,6 +371,90 @@ const MapComponent = () => {
       clearBuildingShortLabels();
     };
   }, [isBuildingView, selectedGroup, mapReady, currentMapId]);
+
+  const onceIdleOrTimeout = (mp, timeoutMs = 500) =>
+  new Promise((resolve) => {
+    let done = false;
+    const off = window.google.maps.event.addListenerOnce(mp, "idle", () => {
+      if (done) return;
+      done = true;
+      resolve();
+    });
+    setTimeout(() => {
+      if (done) return;
+      done = true;
+      window.google.maps.event.removeListener(off);
+      resolve();
+    }, timeoutMs);
+  });
+
+  // Zoom fokozatos léptetése (pl. 16 → 19)
+  const smoothZoom = async (mp, targetZoom, stepMs = 120) => {
+    const clamp = (z) => Math.max(mp.minZoom || 3, Math.min(z, mp.maxZoom || 21));
+    let current = mp.getZoom() ?? 18;
+    targetZoom = clamp(targetZoom);
+
+    const dir = targetZoom > current ? 1 : -1;
+    while (current !== targetZoom) {
+      current = clamp(current + dir);
+      mp.setZoom(current);
+      // kis szünet a következő lépés előtt
+      await new Promise((r) => setTimeout(r, stepMs));
+    }
+  };
+
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+  const ensureViewForStart = async (startNode, opts = {}) => {
+    const { preferOutdoor = false } = opts;
+    if (!startNode) return;
+
+    // Ha épületből jött a start (preferOutdoor), maradjunk külső nézetben,
+    // függetlenül attól, hogy a node-nak van-e floorId-ja.
+    if (preferOutdoor) {
+      if (isBuildingView) setIsBuildingView(false);
+      // Stabilizálás – várd meg a stílus/nézet átállását
+      await wait(0);
+      await wait(0);
+      await onceIdleOrTimeout(map.current, 600);
+
+      if (preferOutdoor && isBuildingView) {
+      setIsBuildingView(false);
+      await wait(0);
+      await onceIdleOrTimeout(map.current, 400);
+      }
+      return;
+    }
+
+    // Egyébként marad a korábbi logika:
+    if (startNode.floorId) {
+      const floorsFC = allFloorsRef.current?.features || [];
+      const buildingsFC = buildingsRef.current?.features || [];
+      const floorF = floorsFC.find(f => f.properties?.id === startNode.floorId);
+      const floorNumber = floorF?.properties?.number ?? null;
+      const buildingName = floorF?.properties?.building ?? null;
+      const buildingF = buildingsFC.find(b => b.properties?.name?.trim() === buildingName?.trim());
+      const gather = buildingF?.properties?.gather?.replace(/"/g, "").trim() ?? null;
+
+      if (!isBuildingView) setIsBuildingView(true);
+      if (gather && floorGroup !== gather) setFloorGroup(gather);
+      if (floorNumber !== null && currentFloor !== floorNumber) setCurrentFloor(floorNumber);
+    } else {
+      if (isBuildingView) setIsBuildingView(false);
+    }
+
+    await wait(0);
+    await wait(0);
+    await onceIdleOrTimeout(map.current, 600);
+  };
+
+  // „Fly to” élmény: először finom csúszás, majd sima rázum
+  const flyTo = async (mp, latLng, targetZoom = 19, zoomStepMs = 120) => {
+    if (!mp || !latLng) return;
+    mp.panTo(latLng);
+    await onceIdleOrTimeout(mp, 600);
+    await smoothZoom(mp, targetZoom, zoomStepMs);
+  };
 
   const getFeatureStyle = (feature) => {
     const category = feature.getProperty("category");
@@ -647,9 +734,15 @@ const MapComponent = () => {
       coordinates.forEach(([lng, lat]) =>
         bounds.extend(new window.google.maps.LatLng(lat, lng))
       );
-      setTimeout(() => {
+      map.current.panTo(bounds.getCenter());
+      window.google.maps.event.addListenerOnce(map.current, "idle", () => {
         map.current.fitBounds(bounds, 100);
-      },200)
+        // zoom plafon a túl közeli nézet elkerülésére
+        window.google.maps.event.addListenerOnce(map.current, "idle", () => {
+          const z = map.current.getZoom();
+          if (z > 19) map.current.setZoom(19);
+        });
+      });
     }
   
     else if (group) {
@@ -705,17 +798,6 @@ const MapComponent = () => {
     coordinates.forEach(([lng, lat]) =>
       bounds.extend(new window.google.maps.LatLng(lat, lng))
     );
-    if (isStart) {
-      setIsBuildingView(false);
-      //setSelectedBuilding(null);
-      const bounds = new window.google.maps.LatLngBounds();
-      coordinates.forEach(([lng, lat]) =>
-        bounds.extend(new window.google.maps.LatLng(lat, lng))
-      );
-      setTimeout(() => {
-        map.current.fitBounds(bounds, 100);
-      },200)
-    }
   };
 
     const focusOnBuilding = (buildingName, gatherName) => {
@@ -764,8 +846,8 @@ const MapComponent = () => {
     
         const center = bounds.getCenter();
         if (center && isFinite(center.lat()) && isFinite(center.lng())) {
-          setMapCenter({ lat: center.lat(), lng: center.lng() });
-          setMapZoom(19);
+          //setMapCenter({ lat: center.lat(), lng: center.lng() });
+          //setMapZoom(19);
         } else {
           console.warn("Hibás középpont számítás:", center);
         }
@@ -793,7 +875,7 @@ const MapComponent = () => {
     setFloorGroup(buildingGather);
     setCurrentFloor(room.floor.number);
     setSearchHighlightedRoom(room);
-    setMapZoom(19);
+    //setMapZoom(19);
 
     // Visszakeressük az összes emeletet, ami a gather csoporthoz tartozik
     const floorsInGroup = allFloorsRef.current?.features
@@ -816,7 +898,10 @@ const MapComponent = () => {
     },200)
   };
 
-  const highlightRouteRoom = async (room, isStart = false) => {
+  const highlightRouteRoom = async (room, isStart = false, opts = {}) => {
+    const { allowViewSwitch = true } = opts; // ÚJ
+
+
     if (!map.current || !room) return;
     
     const buildingName = room.floor.building.name;
@@ -830,15 +915,22 @@ const MapComponent = () => {
     }
 
     // Állítsuk be a belső nézetet és a kapcsolódó adatokat
-    setIsBuildingView(true);
-    setSelectedBuilding(buildingName);
-    setFloorGroup(buildingGather);
-    setCurrentFloor(room.floor.number);
+    if (allowViewSwitch) {
+      setIsBuildingView(true);
+      setSelectedBuilding(buildingName);
+      setFloorGroup(buildingGather);
+      setCurrentFloor(room.floor.number);
+      setRouteHighlightedRooms(prev => ({
+        ...prev,
+        [isStart ? "start" : "end"]: room,
+      }));
+    }
+    //setMapZoom(19);
+
     setRouteHighlightedRooms(prev => ({
       ...prev,
       [isStart ? "start" : "end"]: room,
     }));
-    setMapZoom(19);
 
     // Visszakeressük az összes emeletet, ami a gather csoporthoz tartozik
     const floorsInGroup = allFloorsRef.current?.features
@@ -856,16 +948,6 @@ const MapComponent = () => {
     const coordinates = JSON.parse(room.coordinates);
     const bounds = new window.google.maps.LatLngBounds();
     coordinates.forEach(([lng, lat]) => bounds.extend(new window.google.maps.LatLng(lat, lng)));
-    if (isStart) {
-      setIsBuildingView(true);
-      const bounds = new window.google.maps.LatLngBounds();
-      coordinates.forEach(([lng, lat]) =>
-        bounds.extend(new window.google.maps.LatLng(lat, lng))
-      );
-      setTimeout(() => {
-        map.current.fitBounds(bounds, 100);
-      },200)
-    }
   };
 
   const handleRouteSearch = async (startName, endName) => { //működik
@@ -874,9 +956,12 @@ const MapComponent = () => {
         fetch(`http://localhost:5000/api/search?q=${startName}`),
         fetch(`http://localhost:5000/api/search?q=${endName}`)
       ]);
-  
+      
       const dataStart = await startRes.json();
       const dataEnd = await endRes.json();
+
+      const startFromBuilding = !!dataStart.buildings?.[0];
+      //const startFromRoom     = !!dataStart.rooms?.[0];
 
       let startNode = dataStart.nodes?.[0] ??
       (dataStart.buildings?.[0] &&
@@ -885,33 +970,50 @@ const MapComponent = () => {
       let endNode = dataEnd.nodes?.[0] ??
         (dataEnd.buildings?.[0] &&
           nodes.find(n => n.buildingId === dataEnd.buildings[0].id));
-  
+
       if (!startNode || !endNode) {
         alert("Nem található megfelelő kezdő vagy célpont.");
         return;
       }
       
+      // START kiemelés – CSAK a start válthat nézetet
       if (dataStart.buildings?.[0]) {
         highlightRouteBuilding(dataStart.buildings[0], true);
       } else if (dataStart.rooms?.[0]) {
-        await highlightRouteRoom(dataStart.rooms[0], true);
+        await highlightRouteRoom(dataStart.rooms[0], true, { allowViewSwitch: true });
       }
-      
+
+      // END kiemelés – SOHA ne válthasson nézetet
       if (dataEnd.buildings?.[0]) {
         highlightRouteBuilding(dataEnd.buildings[0], false);
       } else if (dataEnd.rooms?.[0]) {
-        await highlightRouteRoom(dataEnd.rooms[0], false);
+        await highlightRouteRoom(dataEnd.rooms[0], false, { allowViewSwitch: false });
       }
   
       // Állítsuk be a NavigationComponent-hez szükséges értékeket
       setStartLocation({ id: startNode.id, coordinates: startNode.coordinates });
       setEndLocation({ id: endNode.id, coordinates: endNode.coordinates });
       setClearRoute(false);
+
+      await ensureViewForStart(startNode, { preferOutdoor: startFromBuilding });
+
+      // és csak utána repülj:
+      const [sLng, sLat] = JSON.parse(startNode.coordinates)[0];
+      await flyTo(map.current, { lat: sLat, lng: sLng }, 19, 100); // 19-re plafonozva
+
   
     } catch (err) {
       console.error("Hiba az útvonalhoz szükséges node-ok lekérésénél:", err);
       alert("Nem sikerült betölteni az útvonalat.");
     }
+  };
+
+  const cancelRoute = () => {
+    setStartLocation(null);
+    setEndLocation(null);
+    setClearRoute(true);
+    setRouteHighlightedRooms({ start: null, end: null });
+    setRouteHighlightedBuildings({ start: null, end: null });
   };
 
   return (

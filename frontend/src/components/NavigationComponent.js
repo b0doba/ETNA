@@ -53,7 +53,7 @@ const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingV
 
         const edgeMap = buildEdgeMap(filteredEdges);
 
-        const graph = buildGraph(nodes, edges);
+        const graph = buildGraph(nodes, edges); //filteredEdges
         const shortestPath = dijkstra(graph, start.id, end.id);
 
         if (!shortestPath || shortestPath.length === 0) {
@@ -114,7 +114,7 @@ const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingV
     };
 
     fetchAndDrawPath();
-  }, [start, end, map, clear]);
+  }, [start, end, map, clear, currentFloor, isBuildingView, floors]);
 
   return null;
 };
