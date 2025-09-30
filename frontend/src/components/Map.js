@@ -28,6 +28,8 @@ const MapComponent = () => {
 
   const buildingLabelOverlaysRef = useRef(new Map());
   const buildingLabelZoomListenerRef = useRef(null);
+  const roomLabelOverlaysRef = useRef(new Map());
+  const roomLabelZoomListenerRef = useRef(null);
 
   const [currentMapId, setCurrentMapId] = useState("538b561c396b44f6");
   const [is3DView, setIs3DView] = useState(false);
@@ -74,6 +76,12 @@ const MapComponent = () => {
       setSelectedGroup(group);
       highlightSearchBuilding(null, group); // kiemelés beállítása
     }
+  };
+
+  const scaleBetween = (value, minIn, maxIn, minOut, maxOut) => {
+    const v = Math.max(minIn, Math.min(maxIn, value));
+    const t = (v - minIn) / (maxIn - minIn || 1);
+    return minOut + t * (maxOut - minOut);
   };
 
   const overlaysRef = useRef([]);
@@ -137,30 +145,6 @@ const MapComponent = () => {
         if (!mapContainer.current) {
           throw new Error("A térkép konténer nem található.");
         }
-
-        // const bounds = {
-        //   north: mapCenter.lat + 0.1,
-        //   south: mapCenter.lat - 0.1,
-        //   east: mapCenter.lng + 0.25,
-        //   west: mapCenter.lng - 0.25,
-        // };
-
-        // map.current = new window.google.maps.Map(mapContainer.current, {
-        //   streetViewControl: false,
-        //   mapTypeControl: false,
-        //   heading: is3DView ? 45 : 0,
-        //   tilt: is3DView ? 45 : 0,
-        //   mapId: currentMapId,
-        //   mapTypeId: "roadmap",
-        //   zoom: mapZoom,
-        //   center: mapCenter,
-        //   minZoom: 15,
-        //   fullscreenControl: false,
-        //   restriction: {
-        //     latLngBounds: bounds,
-        //     strictBounds: true,
-        //   },
-        // });
 
         const addGeoJSONToMap = (geoJson) => {
           map.current.data.addGeoJson(geoJson);
@@ -372,6 +356,21 @@ const MapComponent = () => {
     };
   }, [isBuildingView, selectedGroup, mapReady, currentMapId]);
 
+  useEffect(() => {
+    if (!mapReady || !map.current) return;
+
+    if (isBuildingView && currentFloor != null) {
+      renderRoomLabels();
+    } else {
+      clearRoomLabels();
+    }
+
+    return () => {
+      // takarítás unmountkor
+      clearRoomLabels();
+    };
+  }, [isBuildingView, currentFloor, floorGroup, selectedGroup, mapReady, currentMapId]);
+
   const onceIdleOrTimeout = (mp, timeoutMs = 500) =>
   new Promise((resolve) => {
     let done = false;
@@ -578,6 +577,144 @@ const MapComponent = () => {
     return bounds.getCenter();
   };
 
+  const getRoomLabelText = (feature) => {
+    const name = (feature.getProperty("name") || "").trim();
+    if (!name) return "";
+    // ha szeretnéd rövidíteni a nagyon hosszú neveket:
+    return name.length > 20 ? name.slice(0, 20) + "…" : name;
+  };
+
+  const createOrUpdateRoomLabel = (feature) => {
+    if (!map.current) return;
+
+    const labelText = getRoomLabelText(feature);
+    if (!labelText) return;
+
+    const center = getFeatureCenterLatLng(feature);
+    if (!center) return;
+
+    const key = feature.getProperty("id") ?? `${feature.getProperty("name")}-${feature.getProperty("floor")}`;
+    if (!key) return;
+
+    let overlay = roomLabelOverlaysRef.current.get(key);
+    let labelDiv;
+
+    if (!overlay) {
+      labelDiv = document.createElement("div");
+      labelDiv.className = "room-name-label";
+      labelDiv.style.position = "absolute";
+      labelDiv.style.transform = "translate(-50%, -50%)";
+      labelDiv.style.pointerEvents = "none";
+      labelDiv.style.fontWeight = "500";
+      labelDiv.style.letterSpacing = "0.2px";
+      labelDiv.style.textShadow = "0 0 2px rgba(255,255,255,0.8)";
+      labelDiv.style.color = "#6b7280";      // halvány szürke
+      labelDiv.style.opacity = "0.7";        // kicsit áttetsző
+      labelDiv.style.whiteSpace = "nowrap";
+      labelDiv.style.userSelect = "none";
+      labelDiv.innerText = labelText;
+
+      overlay = new window.google.maps.OverlayView();
+      overlay.onAdd = function () {
+        const panes = this.getPanes();
+        // nem kell egéresemény → overlayImage elég
+        panes.overlayImage.appendChild(labelDiv);
+      };
+      overlay.draw = function () {
+        const proj = this.getProjection();
+        if (!proj || !map.current) return;
+
+        // középre igazítás
+        const pos = proj.fromLatLngToDivPixel(center);
+        labelDiv.style.left = `${pos.x}px`;
+        labelDiv.style.top  = `${pos.y}px`;
+
+        const z = map.current.getZoom() ?? 18;
+
+        // --- 1) Agresszívebb (exponenciális) skálázás ---
+        // 22-es zoomnál ~16px, minden egyes "kifelé" lépésnél ~0.82-szeresére csökken.
+        // (tetszés szerint hangolható a 16 és 0.82)
+        const baseAtMaxZoom = 16;      // px a legnagyobb zoomnál
+        const decayPerStep  = 0.82;    // mennyire csökken zoomonként
+        const sizePx = Math.max(7, baseAtMaxZoom * Math.pow(decayPerStep, 22 - z));
+        labelDiv.style.fontSize = `${sizePx.toFixed(1)}px`;
+
+        // --- 2) Elrejtés, ha túl "kicsi" a szoba a képernyőn ---
+        // Kb. becslünk a szoba képernyőn látszó méretére egy bounding box-szal.
+        const pixelBounds = (() => {
+          // a feature alakzatát kirajzoló polygon első gyűrűjét mintavételezzük
+          const geom = feature.getGeometry();
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+          const addPath = (path) => {
+            for (let i = 0; i < path.getLength(); i++) {
+              const ll = path.getAt(i);
+              const p = proj.fromLatLngToDivPixel(ll);
+              if (!p) continue;
+              if (p.x < minX) minX = p.x;
+              if (p.x > maxX) maxX = p.x;
+              if (p.y < minY) minY = p.y;
+              if (p.y > maxY) maxY = p.y;
+            }
+          };
+
+          const walk = (g) => {
+            const t = g.getType();
+            if (t === "Polygon") {
+              const ring = g.getAt(0);
+              if (ring) addPath(ring);
+            } else if (t === "MultiPolygon") {
+              for (let i = 0; i < g.getLength(); i++) {
+                const poly = g.getAt(i);
+                const ring = poly.getAt(0);
+                if (ring) addPath(ring);
+              }
+            } else if (t === "GeometryCollection") {
+              for (let i = 0; i < g.getLength(); i++) {
+                walk(g.getAt(i));
+              }
+            }
+          };
+
+          walk(geom);
+          if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+            return { w: 0, h: 0, area: 0 };
+          }
+          const w = Math.max(0, maxX - minX);
+          const h = Math.max(0, maxY - minY);
+          return { w, h, area: w * h };
+        })();
+
+        // Ha a szoba bounding box-a túl kicsi a képernyőn, akkor rejtsük a feliratot.
+        // (küszöb hangolható: 250–800 közti értékek jók; alább 500)
+        const tooSmall = pixelBounds.area < 500;
+
+        // További, zoom alapú megjelenítési szabályok:
+        // - 16 alatt általában rejtsük el a szobafeliratokat
+        // - különben áttetszőség a zoom függvényében (finom halványítás)
+        if (z < 16 || tooSmall) {
+          labelDiv.style.display = "none";
+        } else {
+          labelDiv.style.display = "block";
+          const opacity = Math.max(0.45, Math.min(0.9, 0.45 + (z - 16) * 0.1));
+          labelDiv.style.opacity = opacity.toFixed(2);
+        }
+
+        // (marad: pointer-events: none; transform: translate(-50%, -50%); stb.)
+      };
+
+
+      overlay.onRemove = function () {
+        if (labelDiv.parentNode) labelDiv.parentNode.removeChild(labelDiv);
+      };
+      overlay.setMap(map.current);
+
+      roomLabelOverlaysRef.current.set(key, overlay);
+    } else {
+      overlay.draw && overlay.draw();
+    }
+  };
+
   // A felirat szövege (shortName > névből rövidítés)
   const getBuildingLabelText = (feature) => {
     const shortName = (feature.getProperty("shortName") || "").trim();
@@ -632,13 +769,19 @@ const MapComponent = () => {
         const pos = proj.fromLatLngToDivPixel(center);
         labelDiv.style.left = `${pos.x}px`;
         labelDiv.style.top  = `${pos.y}px`;
+
         const z = map.current.getZoom() ?? 18;
-        const clamped = Math.max(16, Math.min(22, z));
-        const base = 18; // px
-        const size = base + (clamped - 18) * 3; // 18px -> ~36px
-        labelDiv.style.fontSize = `${size}px`;
-        const op = 0.35 + (clamped - 16) * 0.05; // 0.35–0.65
-        labelDiv.style.opacity = `${Math.max(0.25, Math.min(0.7, op))}`;
+
+        // Zoom 15–22 között 12–36 px-ig skálázunk
+        const sizePx = scaleBetween(z, 15, 22, 12, 36);
+        labelDiv.style.fontSize = `${sizePx.toFixed(1)}px`;
+
+        // Opcionális: kicsit halványabb távolról, erősebb közelről
+        const op = scaleBetween(z, 15, 22, 0.35, 0.7);
+        labelDiv.style.opacity = `${op.toFixed(2)}`;
+
+        // Ha nagyon messze vagyunk, el is rejthetjük (opcionális):
+        labelDiv.style.display = z < 14 ? "none" : "block";
       };
       overlay.onRemove = function () {
         if (labelDiv.parentNode) labelDiv.parentNode.removeChild(labelDiv);
@@ -648,6 +791,53 @@ const MapComponent = () => {
       buildingLabelOverlaysRef.current.set(key, overlay);
     } else {
       overlay.draw && overlay.draw();
+    }
+  };
+
+  const renderRoomLabels = () => {
+    if (!map.current) return;
+
+    // töröljük a régieket, hogy ne duplikálódjon
+    roomLabelOverlaysRef.current.forEach((ov) => ov.setMap(null));
+    roomLabelOverlaysRef.current.clear();
+
+    const clean = (s) => (s || "").replace(/"/g, "").trim();
+
+    map.current.data.forEach((feature) => {
+      if (feature.getProperty("category") !== "room") return;
+
+      const roomFloor = feature.getProperty("floor");
+      if (roomFloor !== currentFloor) return;
+
+      // csoport-szűrés a floorGroup alapján (mint a stíluslogikában)
+      if (floorGroup) {
+        const buildingName = feature.getProperty("building");
+        const relatedBuilding = buildingsRef.current?.features?.find(
+          (b) => clean(b.properties?.name) === clean(buildingName)
+        );
+        const buildingGather = clean(relatedBuilding?.properties?.gather);
+        const currentGather = clean(floorGroup);
+        if (buildingGather !== currentGather) return;
+      }
+
+      createOrUpdateRoomLabel(feature);
+    });
+
+    if (roomLabelZoomListenerRef.current) {
+      window.google.maps.event.removeListener(roomLabelZoomListenerRef.current);
+      roomLabelZoomListenerRef.current = null;
+    }
+    roomLabelZoomListenerRef.current = map.current.addListener("zoom_changed", () => {
+      roomLabelOverlaysRef.current.forEach((ov) => ov.draw && ov.draw());
+    });
+  };
+
+  const clearRoomLabels = () => {
+    roomLabelOverlaysRef.current.forEach((ov) => ov.setMap(null));
+    roomLabelOverlaysRef.current.clear();
+    if (roomLabelZoomListenerRef.current) {
+      window.google.maps.event.removeListener(roomLabelZoomListenerRef.current);
+      roomLabelZoomListenerRef.current = null;
     }
   };
 
@@ -851,6 +1041,19 @@ const MapComponent = () => {
         } else {
           console.warn("Hibás középpont számítás:", center);
         }
+
+        // Illeszkedjünk az épülethez, majd finoman zoomoljunk 21-re
+        map.current.fitBounds(bounds, 80);
+        window.google.maps.event.addListenerOnce(map.current, "idle", async () => {
+          // Ha a fitBounds túl messze állt meg, húzzuk fel 21-re; ha túl közel, rögzítsük 21-en
+          const z = map.current.getZoom() ?? 18;
+          if (z < 21) {
+            await smoothZoom(map.current, 20, 20); // lépcső 80ms, ízlés szerint állítható
+          } else {
+            map.current.setZoom(20);
+          }
+        });
+
       } catch (error) {
         console.error("Hiba az épület fókuszálásakor:", error);
       }

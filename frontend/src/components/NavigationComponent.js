@@ -2,18 +2,24 @@ import { useEffect, useRef } from "react";
 
 const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingView, floors }) => {
   const polylineRef = useRef(null);
-  
+  const zoomListenerRef = useRef(null);
 
   useEffect(() => {
-    if (clear && polylineRef.current) {
-      polylineRef.current.setMap(null);
-      polylineRef.current = null;
+    if (!map) return;
+    if (clear) {
+      if (polylineRef.current) {
+        polylineRef.current.setMap(null);
+        polylineRef.current = null;
+      }
+      if (zoomListenerRef.current) {
+        window.google.maps.event.removeListener(zoomListenerRef.current);
+        zoomListenerRef.current = null;
+      }
     }
-  }, [clear]);
+  }, [clear, map]);
 
   useEffect(() => {
-    const fetchAndDrawPath = async () => {      
-      
+    const fetchAndDrawPath = async () => {
       if (!start || !end || !map) return;
 
       try {
@@ -39,21 +45,20 @@ const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingV
         const filteredEdges = edges.filter(edge => {
           const fromFloor = getFloorNumberById(edge.fromNode?.floorId);
           const toFloor = getFloorNumberById(edge.toNode?.floorId);
-        
+
           if (isBuildingView) {
             return (
               edge.type === "hallway" &&
               (fromFloor === currentFloor || toFloor === currentFloor)
             );
-        
-                  } else {
+          } else {
             return edge.type === "path";
           }
         });
 
         const edgeMap = buildEdgeMap(filteredEdges);
 
-        const graph = buildGraph(nodes, edges); //filteredEdges
+        const graph = buildGraph(nodes, edges); // vagy filteredEdges, ha a kinti részt is szűrni akarod
         const shortestPath = dijkstra(graph, start.id, end.id);
 
         if (!shortestPath || shortestPath.length === 0) {
@@ -62,7 +67,6 @@ const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingV
         }
 
         const pathCoordinates = [];
-
         for (let i = 0; i < shortestPath.length - 1; i++) {
           const fromId = shortestPath[i];
           const toId = shortestPath[i + 1];
@@ -72,52 +76,113 @@ const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingV
           if (!edge) continue;
 
           const fromNode = nodes.find((n) => n.id === fromId);
-          const toNode = nodes.find((n) => n.id === toId);
+          const toNode   = nodes.find((n) => n.id === toId);
           if (!fromNode || !toNode) continue;
 
           const isForward = edge.fromNodeId === fromId;
-          const waypoints = isForward
-            ? edge.waypoints
-            : [...edge.waypoints].reverse();
+          const waypoints = isForward ? edge.waypoints : [...edge.waypoints].reverse();
 
           const fromCoord = JSON.parse(fromNode.coordinates)[0];
           pathCoordinates.push({ lat: fromCoord[1], lng: fromCoord[0] });
 
-          waypoints.forEach(([lng, lat]) => {
-            pathCoordinates.push({ lat, lng });
-          });
+          waypoints.forEach(([lng, lat]) => pathCoordinates.push({ lat, lng }));
 
           const toCoord = JSON.parse(toNode.coordinates)[0];
           pathCoordinates.push({ lat: toCoord[1], lng: toCoord[0] });
         }
 
+        // régi polyline eltávolítása
         if (polylineRef.current) {
           polylineRef.current.setMap(null);
+          polylineRef.current = null;
+        }
+        if (zoomListenerRef.current) {
+          window.google.maps.event.removeListener(zoomListenerRef.current);
+          zoomListenerRef.current = null;
         }
 
-        const polyline = new window.google.maps.Polyline({
+        // --- NYILAS MEGJELENÍTÉS ---
+        const computeArrowScale = () => {
+          const z = map.getZoom() ?? 18;
+          // szoba felirat méretezéshez hasonlóan, de sokkal kisebb tartomány
+          // zoom 15 → 0.5px, zoom 22 → 2px
+          const minZoom = 15;
+          const maxZoom = 22;
+          const minScale = 0.5;
+          const maxScale = 2;
+
+          const clamped = Math.max(minZoom, Math.min(maxZoom, z));
+          const t = (clamped - minZoom) / (maxZoom - minZoom);
+          return minScale + t * (maxScale - minScale);
+        };
+
+
+        const arrowColor = "#1a73e8"; // Google-kék, nyugodtan állíthatod
+        const basePolyline = new window.google.maps.Polyline({
           path: pathCoordinates,
           geodesic: true,
-          strokeColor: "#0000FF",
-          strokeOpacity: 0.6,
-          strokeWeight: 4,
+          strokeColor: arrowColor,     // halvány alávonal – ha nem kell, tedd 0-ra az opacity-t
+          strokeOpacity: 0.25,
+          strokeWeight: 5,
+          // FONTOS: a nyilak IRÁNYA a path sorrendjét követi (start → end)!
+          icons: [
+            {
+              icon: {
+                path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                scale: computeArrowScale(),
+                strokeColor: arrowColor,
+                strokeOpacity: 1,
+                strokeWeight: 2,
+                fillColor: arrowColor,
+                fillOpacity: 1,
+              },
+              offset: "0",         // első nyíl eltolása a vonal elejétől
+              repeat: "28px",      // nyilak sűrűsége: 20–40px között érdemes
+            },
+          ],
         });
 
-        polyline.setMap(map);
-        polylineRef.current = polyline;
+        basePolyline.setMap(map);
+        polylineRef.current = basePolyline;
 
+        // Zoomhoz igazodó nyílméret
+        zoomListenerRef.current = map.addListener("zoom_changed", () => {
+          if (!polylineRef.current) return;
+          const scale = computeArrowScale();
+          const icons = polylineRef.current.get("icons") || [];
+          if (icons[0]?.icon) {
+            icons[0].icon = {
+              ...icons[0].icon,
+              scale,
+            };
+            polylineRef.current.set("icons", icons);
+          }
+        });
 
       } catch (error) {
         console.error("Hiba az útvonal kiszámításakor:", error);
       }
-
     };
 
     fetchAndDrawPath();
+
+    // takarítás komponens/param váltáskor
+    return () => {
+      if (zoomListenerRef.current) {
+        window.google.maps.event.removeListener(zoomListenerRef.current);
+        zoomListenerRef.current = null;
+      }
+      if (polylineRef.current && !clear) {
+        polylineRef.current.setMap(null);
+        polylineRef.current = null;
+      }
+    };
   }, [start, end, map, clear, currentFloor, isBuildingView, floors]);
 
   return null;
 };
+
+// ======== segédfüggvények maradnak ========
 
 function normalizeEdge(edge) {
   try {
@@ -165,7 +230,6 @@ function dijkstra(graph, startId, endId) {
     }
   }
 
-  // út visszafejtése
   const path = [];
   let current = String(endId);
   while (current !== null) {
@@ -178,17 +242,11 @@ function dijkstra(graph, startId, endId) {
 
 function buildGraph(nodes, edges) {
   const graph = {};
-
-  nodes.forEach((node) => {
-    graph[node.id] = [];
-  });
+  nodes.forEach((node) => { graph[node.id] = []; });
 
   edges.forEach((edge) => {
     const { fromNodeId, toNodeId, distance } = edge;
-
     if (!graph[fromNodeId] || !graph[toNodeId]) return;
-
-    // Csak akkor adjuk hozzá, ha distance > 0 és nincs már benne
     if (distance > 0) {
       if (!graph[fromNodeId].some(e => e.node === toNodeId)) {
         graph[fromNodeId].push({ node: toNodeId, weight: distance });
@@ -198,27 +256,20 @@ function buildGraph(nodes, edges) {
       }
     }
   });
-
   return graph;
 }
 
-
 function buildEdgeMap(edges) {
   const edgeMap = new Map();
-
   edges.forEach((edge) => {
     const key = makeEdgeKey(edge.fromNodeId, edge.toNodeId);
     edgeMap.set(key, edge);
   });
-
   return edgeMap;
 }
 
 function makeEdgeKey(a, b) {
   return `${Math.min(a, b)}-${Math.max(a, b)}`;
 }
-
-
-
 
 export default NavigationComponent;
