@@ -18,6 +18,98 @@ const fetchGeoJSON = async (url) => {
   }
 };
 
+// --- Segéd: gyűrű zárása ---
+const closeRing = (pts) => {
+  if (!pts?.length) return [];
+  const f = pts[0], l = pts[pts.length - 1];
+  if (f[0] !== l[0] || f[1] !== l[1]) return [...pts, [f[0], f[1]]];
+  return pts.slice();
+};
+
+// --- Segéd: egymásra eső PONTOK kiszűrése (csak duplikátokat törlünk!) ---
+const dedupeNearPoints = (pts, eps = 1e-9) => {
+  if (!pts || pts.length === 0) return [];
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const a = out[out.length - 1], b = pts[i];
+    if (Math.abs(a[0] - b[0]) > eps || Math.abs(a[1] - b[1]) > eps) {
+      out.push(b);
+    }
+  }
+  return out;
+};
+
+// --- ORTOGONALIZÁLÁS: szigorúan 0°/90°-os élek, globális sarok-korrekcióval ---
+/**
+ * orthogonalizeAxisAligned(points, opts)
+ * points: [[lng,lat], ...] lezárt/lezáratlan is jöhet
+ * opts.ratio: H/V eldöntés küszöb (|dx| >= ratio*|dy| => H; |dy| >= ratio*|dx| => V)
+ * Visszaad: lezárt, 90°-os gyűrű. Csak pontosan egymásra eső pontokat távolít el.
+ */
+const orthogonalizeAxisAligned = (points, opts = {}) => {
+  const ratio = opts.ratio ?? 1.15;
+  const eps = opts.eps ?? 1e-9;
+
+  if (!points || points.length < 4) return closeRing(points ?? []);
+
+  // 0) Lezárás + duplikált pontok kiszűrése (csak egymásra esők!)
+  let ring = closeRing(points);
+  ring = dedupeNearPoints(ring, eps);
+  if (ring.length < 4) return closeRing(ring);
+
+  const n = ring.length - 1; // utolsó = első
+  const ori = new Array(n);  // 'H' vagy 'V' minden élre
+  const yOfH = new Array(n); // vízszintes élek közös y-ja
+  const xOfV = new Array(n); // függőleges élek közös x-e
+
+  // 1) Élek címkézése + célértékek (H: y-átlag, V: x-átlag)
+  for (let i = 0; i < n; i++) {
+    const a = ring[i], b = ring[i+1];
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+
+    let isH;
+    if (Math.abs(dx) >= ratio * Math.abs(dy)) isH = true;
+    else if (Math.abs(dy) >= ratio * Math.abs(dx)) isH = false;
+    else {
+      // köztes eset: amelyik komponens nagyobb abszolútértékben
+      isH = Math.abs(dx) >= Math.abs(dy);
+    }
+
+    if (isH) {
+      ori[i] = 'H';
+      yOfH[i] = (a[1] + b[1]) / 2;
+    } else {
+      ori[i] = 'V';
+      xOfV[i] = (a[0] + b[0]) / 2;
+    }
+  }
+
+  // 2) Csomópontok újraszámolása: minden sarok (i) x-e a V él(ek)ből, y-a a H él(ek)ből jön
+  const out = new Array(n + 1);
+  for (let i = 0; i < n; i++) {
+    // x komponens: a V él érintse a csúcsot (vagy i-1 vagy i él V)
+    let x = ring[i][0];
+    const iPrev = (i - 1 + n) % n;
+    if (ori[i] === 'V') x = xOfV[i];
+    else if (ori[iPrev] === 'V') x = xOfV[iPrev];
+
+    // y komponens: a H él érintse a csúcsot (vagy i-1 vagy i él H)
+    let y = ring[i][1];
+    if (ori[iPrev] === 'H') y = yOfH[iPrev];
+    else if (ori[i] === 'H') y = yOfH[i];
+
+    out[i] = [x, y];
+  }
+  out[n] = [out[0][0], out[0][1]]; // zárás
+
+  // 3) Csak egymásra eső (dupla) pontok és nulla hosszú élek törlése
+  let cleaned = dedupeNearPoints(out, eps);
+  cleaned = closeRing(cleaned);
+
+  return cleaned;
+};
+
+
 const AdminMap = () => {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -757,9 +849,25 @@ const simplifyPolyline = (points, minDistance = 0.0000001) => {
     let coordinates = selectedFeature.current.polygon
       .getPath()
       .getArray()
-      .map((latLng) => [latLng.lng(), latLng.lat()]);
-  
-    const simplifiedCoordinates = simplifyPolygon(coordinates, 0.00001);
+      .map((ll) => [ll.lng(), ll.lat()]);
+
+    // 0/90 fokosra húzás, csak duplikált pontok kiszedése
+    const ortho = orthogonalizeAxisAligned(coordinates, {
+      ratio: 1.15, // ha még marad ferdülés: 1.05; ha túl agresszív: 1.3
+      eps: 1e-9
+    });
+
+    // biztos legyen lezárva (a fenti már zár)
+    const simplifiedCoordinates = ortho;
+
+
+    // 3) biztos zárás (ha a simplify levette volna)
+    const first = simplifiedCoordinates[0];
+    const last  = simplifiedCoordinates[simplifiedCoordinates.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      simplifiedCoordinates.push([first[0], first[1]]);
+    }
+
 
     // Ha az első és utolsó koordináta nem azonos, zárjuk le a poligont
     if (

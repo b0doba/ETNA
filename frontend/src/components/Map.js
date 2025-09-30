@@ -488,8 +488,8 @@ const MapComponent = () => {
       if (category === "floor" && floorNumber === currentFloor) {
         return {
           fillColor: "lightgray",
-          strokeColor: "black",
-          strokeWeight: 1,
+          strokeColor: "lightgray",
+          strokeWeight: 0.2,
           visible: true,
         };
       }
