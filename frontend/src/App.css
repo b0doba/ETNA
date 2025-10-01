@@ -1,4 +1,4 @@
-.App {
+ea.App {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
@@ -99,6 +99,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.12);
 }
 
 .route-btn{
@@ -111,6 +112,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.12);
 }
 
 .search-btn img,
@@ -208,7 +210,7 @@ html, body {
 
 
 
-@media (max-width: 1024px) {
+/* @media (max-width: 1024px) {
   
   .search-panel {
     position: relative !important;
@@ -276,7 +278,7 @@ html, body {
     bottom: 30px !important;
     right: 10px !important;
   }
-}
+} */
 
 
 .map-3d-btn {
@@ -430,7 +432,7 @@ html, body {
   padding: 4.52% 0.5%;
   font-size: 0.7rem;
   cursor: pointer;
-  height: 165px;
+  height: 151px;
   width: 25px;
 }
 
@@ -484,23 +486,28 @@ html, body {
 
 .info-btn{
     position: absolute;
-    bottom: 30px;
-    left: 10px;
+    top: 10px;
+    right: 0px;
     background-Color: white;
     border: none;
-    border-Radius: 40%;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 0%;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 0%;
     box-Shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     width: 40px;
-    height: 40px;
+    height: 32px;
     cursor: pointer;
     z-Index: 1000;
     display: flex;
     align-Items: center;
     justify-Content: center;
+    transition-duration: 300ms;
 }
 
 .info-btn:hover{
  background-color: #f0f0f0;
+ width: 60px;
 }
 
 .info-btn img{
@@ -508,4 +515,140 @@ html, body {
   height: "24px";
   filter: invert(64%) sepia(91%) saturate(662%) hue-rotate(150deg) brightness(80%) contrast(92%);
 }
+
+/* listaelemek középre igazítva */
+.route-step {
+  display: flex;
+  align-items: center;         /* ⬅️ fontos a vertikális középhez */
+  gap: 12px;
+  padding: 8px 1px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background .15s ease, border-color .15s ease, max-height .2s ease, padding .2s ease, opacity .2s ease;
+}
+.route-step + .route-step { margin-top: 6px; }
+
+/* „rádió” jel + ikon teljesen középen */
+.route-step-bullet {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  border-radius: 9999px;
+  border: 2px solid #cbd5e1;
+  background: #fff;
+  display: flex;               /* ⬅️ középre igazítás */
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  transition: transform .2s ease, border-color .2s ease, background .2s ease;
+}
+.route-step-bullet.active {
+  border-color: #01acc8;
+  background: #e7fbff;
+}
+
+.route-step-icon {
+  width: 14px;
+  height: 14px;
+  margin: 0;                   /* ⬅️ vedd le a margin-top-ot */
+  display: block;
+  opacity: .9;
+}
+
+/* szövegek */
+.route-step-texts { display: flex; flex-direction: column; gap: 2px; }
+.route-step-title  { font-weight: 600; font-size: .9rem; color: #0f172a; }
+
+/* állapotok */
+.route-step.active {
+  border: 1px solid #01acc8;
+  background: #eefbfe;
+  max-height: 200px;
+  padding: 10px 12px;
+  opacity: 1;
+}
+
+.route-step.compact {
+  max-height: 38px;
+  padding: 6px 10px;
+  background: #fff;
+  border-color: transparent;
+  opacity: .9;
+}
+
+/* a compact elemeknél a subtitle alapból ne látszódjon */
+.route-step.compact .route-step-subtitle { display: none; }
+
+/* opcionális hover */
+.route-step:hover { background: #f7fbff; }
+
+/* Leíró szöveg (Írd le hova szeretnél menni!) */
+.description{
+  margin: 12px 0 6px;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+/* Tartó a fejléc + lépések köré */
+.route-steps{
+  width: 94%;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(15,23,42,.05);
+
+  /* legördülő animáció */
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: max-height .35s ease, opacity .25s ease, transform .35s ease;
+}
+
+/* amikor megjelenik */
+.route-steps.is-entering{
+  max-height: 1000px;    /* elég nagy, hogy kiférjen */
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Fejléc (ikon + cím + meta) */
+.route-steps-header{ padding-bottom: 6px; border-bottom: 1px solid #f1f5f9; }
+.route-steps-title{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.route-steps-icon{
+  width: 22px; height: 22px; flex: 0 0 22px; opacity: .9;
+}
+.route-steps-texts{ display:flex; flex-direction:column; gap:2px; }
+.route-steps-mainline{
+  font-weight: 700;
+  font-size: 1rem;
+  color: #0f172a;
+  line-height: 1.1;
+}
+.route-steps-subline{
+  font-size: .9rem;
+  color: #475569;
+}
+
+/* Lista rendezés – balra zárt, nincs extra behúzás */
+.route-steps-list{
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;               /* ⬅️ ez szedi le a bal oldali nagy behúzást */
+  display: flex;
+  flex-direction: column;
+}
+
+/* A lépés elemekre már vannak szabályaid (.route-step, .route-step-bullet, stb.)
+   azok jól fognak illeszkedni ehhez a listához. */
+
+
+
+
 

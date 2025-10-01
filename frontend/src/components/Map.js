@@ -26,6 +26,10 @@ const MapComponent = () => {
   const roomsRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
 
+  const [routeUI, setRouteUI] = useState(null);
+  const BUILD_STEP_WHITELIST = new Set(["exit", "stairs", "EXIT", "STAIRS"]);
+  const lastRouteNamesRef = useRef({ start: "", end: "" });
+
   const buildingLabelOverlaysRef = useRef(new Map());
   const buildingLabelZoomListenerRef = useRef(null);
   const roomLabelOverlaysRef = useRef(new Map());
@@ -82,6 +86,23 @@ const MapComponent = () => {
     const v = Math.max(minIn, Math.min(maxIn, value));
     const t = (v - minIn) / (maxIn - minIn || 1);
     return minOut + t * (maxOut - minOut);
+  };
+
+  const handleStepClick = (step) => {
+    // demo: csak aktívra állítjuk
+    setRouteUI(prev => prev ? { ...prev, activeStepId: step.id } : prev);
+    // TODO: később: nézetváltás, pan/zoom a szakasz boundingbox-ára stb.
+  };
+
+  const handleCloseSteps = () => {
+    setRouteUI(null);
+  };
+
+  const nodeKindToStepKind = (t) => {
+    const k = (t || "").toLowerCase();
+    if (k === "stairs") return "transition";     // ikon/stílus nálad már kész
+    if (k === "exit")   return "transition";
+    return "indoor";
   };
 
   const overlaysRef = useRef([]);
@@ -370,6 +391,46 @@ const MapComponent = () => {
       clearRoomLabels();
     };
   }, [isBuildingView, currentFloor, floorGroup, selectedGroup, mapReady, currentMapId]);
+
+  const buildStepsFromNodes = (pathNodes = [], startLabel, endLabel) => {
+      const steps = [];
+
+      // 0) kezdőpont pseudo-step
+      steps.push({
+        id: "start",
+        title: startLabel || "Kezdőpont",
+        kind: "transition",
+      });
+
+      // 1) csak a whitelistelt típusok
+      pathNodes.forEach((n, i) => {
+        const t = (n.type || n.nodeType || "").toLowerCase();
+        if (!BUILD_STEP_WHITELIST.has(t)) return;
+
+        steps.push({
+          id: n.id ?? `n${i}`,
+          title: n.name || t.toUpperCase(),
+          kind: nodeKindToStepKind(t),
+          // (ha akarsz: subtitle/distanceLabel később)
+        });
+      });
+
+      // 2) cél pseudo-step
+      steps.push({
+        id: "end",
+        title: endLabel || "Úticél",
+        kind: "transition",
+      });
+
+      return {
+        startLabel,
+        endLabel,
+        totalDistance: "—",   // később kitöltjük NavigationComponent-ből
+        totalTime: "—",
+        steps,
+        activeStepId: steps[0]?.id,
+      };
+    };
 
   const onceIdleOrTimeout = (mp, timeoutMs = 500) =>
   new Promise((resolve) => {
@@ -1163,6 +1224,8 @@ const MapComponent = () => {
       const dataStart = await startRes.json();
       const dataEnd = await endRes.json();
 
+      lastRouteNamesRef.current = { start: startName, end: endName };
+
       const startFromBuilding = !!dataStart.buildings?.[0];
       //const startFromRoom     = !!dataStart.rooms?.[0];
 
@@ -1198,6 +1261,24 @@ const MapComponent = () => {
       setEndLocation({ id: endNode.id, coordinates: endNode.coordinates });
       setClearRoute(false);
 
+      const demoSteps = [
+        { id: "s1", title: "Indulj a kezdőponttól", subtitle: "Kültér", kind: "outdoor", distanceLabel: "50 m" },
+        { id: "s2", title: "Lépj be az épületbe", subtitle: "Átmenet", kind: "transition" },
+        { id: "s3", title: "Haladj a folyosón", subtitle: "Földszint", kind: "indoor", distanceLabel: "120 m" },
+        { id: "s4", title: "Menj fel a 2. szintre", subtitle: "Lépcső", kind: "transition" },
+        { id: "s5", title: "Célig a folyosón", subtitle: "2. szint", kind: "indoor", distanceLabel: "180 m" },
+      ];
+
+      setRouteUI({
+        startLabel: startName,
+        endLabel: endName,
+        totalDistance: "350–450 m",  // demo
+        totalTime: "5–7 perc",       // demo
+        steps: demoSteps,
+        activeStepId: "s1",
+      });
+
+
       await ensureViewForStart(startNode, { preferOutdoor: startFromBuilding });
 
       // és csak utána repülj:
@@ -1210,6 +1291,20 @@ const MapComponent = () => {
       alert("Nem sikerült betölteni az útvonalat.");
     }
   };
+
+  // MapComponent-ben:
+  const handleRouteNodes = (pathNodes, meta = {}) => {
+    // meta.distance, meta.time ha küldöd (nem kötelező)
+    const ui = buildStepsFromNodes(
+      pathNodes,
+      lastRouteNamesRef.current.start,
+      lastRouteNamesRef.current.end
+    );
+    if (meta?.distance) ui.totalDistance = meta.distance;
+    if (meta?.time)     ui.totalTime     = meta.time;
+    setRouteUI(ui);
+  };
+
 
   const cancelRoute = () => {
     setStartLocation(null);
@@ -1245,11 +1340,15 @@ const MapComponent = () => {
           setClearRoute(true);
           setRouteHighlightedRooms({ start: null, end: null });
           setRouteHighlightedBuildings({ start: null, end: null });
+          setRouteUI(null);
         }}
         delHighlight={() => {
           setSearchHighlightedRoom(null);
           setSearchHighlightedBuilding(null);
         }}
+         routeUI={routeUI}
+         onStepClick={handleStepClick}
+         onCloseSteps={handleCloseSteps}
         />
       </div>
       <NavigationComponent
@@ -1260,6 +1359,7 @@ const MapComponent = () => {
         currentFloor={currentFloor}
         isBuildingView={isBuildingView}
         floors={allFloorsRef.current?.features}
+        onRouteNodes={handleRouteNodes}
       />
       {loading && <p>Betöltés...</p>}
       {error && <p style={{ color: "blue" }}>Hiba történt: {error}</p>}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import "../App.css";
 
-const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hudHidden, delHighlight  }) => {
+const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hudHidden, delHighlight, routeUI, onStepClick, onCloseSteps  }) => {
   const [showRouteInputs, setShowRouteInputs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [startPoint, setStartPoint] = useState("");
@@ -12,6 +12,8 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
   const [activeInput, setActiveInput] = useState("search");
   const searchIcon = "/assets/icons/arrow.svg";
   const routeIcon =  "/assets/icons/pitch.svg";
+
+  const [stepsOpen, setStepsOpen] = useState(false);
   
   useEffect(() => {
     const fetchSuggestions = async (query) => {
@@ -57,6 +59,8 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
       delHighlight();
     }
   }, [searchQuery, delHighlight]);
+
+  
   
   // Keresési funkció az útvonalhoz
   const handleRouteSearch = () => {
@@ -81,6 +85,12 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
     });
   }
 }, [selectedIndex]);
+
+useEffect(() => {
+  if (routeUI?.steps?.length) {
+    requestAnimationFrame(() => setStepsOpen(true));
+  }
+}, [routeUI?.steps?.length]);
 
   const handleSearch = () => {
     onSearch(searchQuery);
@@ -231,13 +241,64 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
           <button className="route-btn search-route-btn" onClick={() => {onCancelRoute();handleRouteSearch();}}>
             Útvonaltervezés
           </button>
-          <button className="route-btn" onClick={() => {
-            setShowRouteInputs(false);
-            if (onCancelRoute) {onCancelRoute();}
-          }}>Vissza</button>
+          <button
+            className="route-btn"
+            onClick={() => {
+              setStepsOpen(false);
+              setShowRouteInputs(false);
+              onCancelRoute?.();
+            }}
+          >
+            Vissza
+          </button>
         </div>
       )}
       <p className="description">Írd le hova szeretnél menni!</p>
+      {routeUI && routeUI.steps && routeUI.steps.length > 0 && (
+          <div className={`route-steps ${stepsOpen ? "is-entering" : ""}`}>
+            <div className="route-steps-header">
+              <div className="route-steps-title">
+                <img className="route-steps-icon" src="/assets/icons/pitch.svg" alt="" />
+                <div className="route-steps-texts">
+                  <div className="route-steps-mainline">
+                    {routeUI.startLabel} → {routeUI.endLabel}
+                  </div>
+                  {(routeUI.totalDistance || routeUI.totalTime) && (
+                    <div className="route-steps-subline">
+                      {routeUI.totalDistance ?? ""}{routeUI.totalTime ? ` • ${routeUI.totalTime}` : ""}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <ul className="route-steps-list">
+              {routeUI.steps.map((s) => {
+                const active = s.id === routeUI.activeStepId;
+                return (
+                  <li
+                    key={s.id}
+                    className={`route-step ${active ? "active" : ""}`}
+                     onClick={() => {
+                      onStepClick?.(s);
+                    }}
+                    title={s.subtitle || s.title}
+                  >
+                    <div className={`route-step-bullet ${active ? "active" : ""}`}></div>
+                    <div className="route-step-texts">
+                      <div className="route-step-title">{s.title}</div>
+                      {active && (s.subtitle || s.distanceLabel) && (
+                        <div className="route-step-subtitle">
+                          {s.subtitle}{s.subtitle && s.distanceLabel ? " • " : ""}{s.distanceLabel}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
     </div>
     <div className={`category-buttons-wrapper ${hudHidden ? 'hidden' : ''}`}>
       <div className="category-buttons">

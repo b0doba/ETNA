@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingView, floors }) => {
+const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingView, floors, onRouteNodes }) => {
   const polylineRef = useRef(null);
   const zoomListenerRef = useRef(null);
 
@@ -90,6 +90,38 @@ const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingV
           const toCoord = JSON.parse(toNode.coordinates)[0];
           pathCoordinates.push({ lat: toCoord[1], lng: toCoord[0] });
         }
+
+        const formatDistance = (m) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`);
+        const formatTimeRange = (meters) => {
+          // kb. 1.2–1.6 m/s gyalogtempó → 72–96 m/perc
+          const fast = meters / 96; // perc
+          const slow = meters / 72; // perc
+          const toMin = (x) => Math.max(1, Math.round(x));
+          return `${toMin(fast)}–${toMin(slow)} perc`;
+        };
+
+        // 1) path koordináták eddig is készültek… (marad minden)
+
+        // 2) pathNodes (ID → teljes node objektum)
+        const nodesById = new Map(nodes.map(n => [n.id, n]));
+        const pathNodes = shortestPath.map(id => nodesById.get(id)).filter(Boolean);
+
+        // 3) teljes táv a választott élek mentén
+        let totalMeters = 0;
+        for (let i = 0; i < shortestPath.length - 1; i++) {
+          const k = makeEdgeKey(shortestPath[i], shortestPath[i + 1]);
+          const e = edgeMap.get(k);
+          if (e?.distance) totalMeters += Number(e.distance) || 0;
+        }
+
+        // 4) meta és visszahívás a Map felé
+        const meta = {
+          distance: formatDistance(totalMeters),
+          time: formatTimeRange(totalMeters),
+        };
+
+        onRouteNodes?.(pathNodes, meta);
+
 
         // régi polyline eltávolítása
         if (polylineRef.current) {
@@ -181,6 +213,8 @@ const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingV
 
   return null;
 };
+
+
 
 // ======== segédfüggvények maradnak ========
 
