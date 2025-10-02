@@ -261,7 +261,7 @@ useEffect(() => {
                 <img className="route-steps-icon" src="/assets/icons/pitch.svg" alt="" />
                 <div className="route-steps-texts">
                   <div className="route-steps-mainline">
-                    {routeUI.startLabel} → {routeUI.endLabel}
+                    Kövesd az alábbi lépéseket!
                   </div>
                   {(routeUI.totalDistance || routeUI.totalTime) && (
                     <div className="route-steps-subline">
@@ -271,32 +271,37 @@ useEffect(() => {
                 </div>
               </div>
             </div>
-
-            <ul className="route-steps-list">
-              {routeUI.steps.map((s) => {
-                const active = s.id === routeUI.activeStepId;
-                return (
-                  <li
-                    key={s.id}
-                    className={`route-step ${active ? "active" : ""}`}
-                     onClick={() => {
-                      onStepClick?.(s);
-                    }}
-                    title={s.subtitle || s.title}
-                  >
-                    <div className={`route-step-bullet ${active ? "active" : ""}`}></div>
-                    <div className="route-step-texts">
-                      <div className="route-step-title">{s.title}</div>
-                      {active && (s.subtitle || s.distanceLabel) && (
-                        <div className="route-step-subtitle">
-                          {s.subtitle}{s.subtitle && s.distanceLabel ? " • " : ""}{s.distanceLabel}
+             <ul className="route-steps-list">
+                <div className="route-rail" aria-hidden="true" />
+                  {routeUI.steps.map((s, idx) => {
+                    const active = s.id === routeUI.activeStepId;
+                    const first = idx === 0;
+                    const last  = idx === routeUI.steps.length - 1;
+                    return (
+                      <li
+                        key={s.id}
+                        className={`route-step ${active ? "active" : ""} ${first ? "first" : ""} ${last ? "last" : ""}`}
+                        onClick={() => onStepClick?.(s)}
+                        title={s.subtitle || s.title}
+                      >
+                        <div className={`route-step-bullet ${active ? "active" : ""}`} />
+                        <div className="route-step-texts">
+                          <div className="route-step-title">
+                            {first ? "Kezdőpont: " : last ? "Úticél: " : ""}{s.title}
+                          </div>
+                          {active && (s.subtitle || s.distanceLabel) && (
+                            <div className="route-step-subtitle">
+                              {s.subtitle}{s.subtitle && s.distanceLabel ? " • " : ""}{s.distanceLabel}
+                            </div>
+                          )}
+                          {active && s.hint && (
+                            <div className="route-step-hint">{s.hint}</div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                      </li>
+                    );
+                  })}
+              </ul>
           </div>
         )}
     </div>
