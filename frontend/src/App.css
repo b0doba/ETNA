@@ -703,6 +703,16 @@ html, body {
   line-height: 1.25;
 }
 
+.route-btn.is-disabled,
+.route-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.route-input:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
 
 
 

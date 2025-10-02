@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import "../App.css";
 
-const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hudHidden, delHighlight, routeUI, onStepClick, onCloseSteps  }) => {
+const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hudHidden, delHighlight, routeUI, onStepClick, onCloseSteps, routeDisabled = false  }) => {
   const [showRouteInputs, setShowRouteInputs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [startPoint, setStartPoint] = useState("");
@@ -64,6 +64,10 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
   
   // Keresési funkció az útvonalhoz
   const handleRouteSearch = () => {
+    if (routeDisabled) {
+      alert("Csoportnézetben nem tervezhetsz útvonalat. Előbb töröld a csoportszűrőt.");
+      return;
+    }
     if (!startPoint || !destination) {
       alert("Kérlek add meg mindkét helyet az útvonaltervezéshez!");
       return;
@@ -96,6 +100,19 @@ useEffect(() => {
     onSearch(searchQuery);
     setSuggestions([]);
   };
+
+ const handleGroupClick = (group) => {
+   // ha épp útvonaltervezésben vagyunk, állítsuk le és csukjuk be a UI-t
+   if (routeUI?.steps?.length) {
+     setStepsOpen(false);
+     setShowRouteInputs(false);
+     onCancelRoute?.();
+   }
+   // biztos, ami biztos: töröljük a kiemeléseket
+   delHighlight?.();
+   // végül mehet a csoportválasztás
+   onGroupSelect?.(group);
+ };
 
   return (
     <>
@@ -148,7 +165,18 @@ useEffect(() => {
             <button className="search-btn" onClick={handleSearch}>
               <img src={searchIcon} alt="Keresés" title="Keresés"/>
             </button>
-          <button className="route-btn" onClick={() => {setShowRouteInputs(true); delHighlight();}}>
+          <button
+            className={`route-btn ${routeDisabled ? 'is-disabled' : ''}`}
+            onClick={() => {
+              if (routeDisabled) {
+                alert("Csoportnézetben nem tervezhetsz útvonalat. Előbb töröld a csoportszűrőt.");
+                return;
+              }
+              setShowRouteInputs(true);
+              delHighlight();
+            }}
+            disabled={routeDisabled}
+          >
             <img src={routeIcon} alt="Útvonaltervezés" title="Útvonaltervezés" />
           </button>
         </div>
@@ -307,10 +335,10 @@ useEffect(() => {
     </div>
     <div className={`category-buttons-wrapper ${hudHidden ? 'hidden' : ''}`}>
       <div className="category-buttons">
-        <button className="category-btn" onClick={() => onGroupSelect("Kollégiumok")}>Kollégiumok</button>
-        <button className="category-btn" onClick={() => onGroupSelect("Sportcsarnokok")}>Sportcsarnokok</button>
-        <button className="category-btn" onClick={() => onGroupSelect("Parkolók")}>Parkolók</button>
-        <button className="category-btn" onClick={() => onGroupSelect("Tanulmányi épületek")}>Tanulmányi Épületek</button>
+        <button className="category-btn" onClick={() => handleGroupClick("Kollégiumok")}>Kollégiumok</button>
+        <button className="category-btn" onClick={() => handleGroupClick("Sportcsarnokok")}>Sportcsarnokok</button>
+        <button className="category-btn" onClick={() => handleGroupClick("Parkolók")}>Parkolók</button>
+        <button className="category-btn" onClick={() => handleGroupClick("Tanulmányi épületek")}>Tanulmányi Épületek</button>
         <button className="category-btn">Rendezvények</button>
       </div>
     </div>

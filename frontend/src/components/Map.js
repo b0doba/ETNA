@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import SearchPanel from "./SearchPanel.js";
 import loadGoogleMapsScript from "./loadGoogleMap";
 import NavigationComponent from "./NavigationComponent";
-import Map3DControls from "./Map3DControls";
+//import Map3DControls from "./Map3DControls";
 
 
 const fetchGeoJSON = async (url) => {
@@ -30,6 +30,16 @@ const MapComponent = () => {
   const BUILD_STEP_WHITELIST = new Set(["exit", "stairs", "EXIT", "STAIRS"]);
   const lastRouteNamesRef = useRef({ start: "", end: "" });
   const routeEndpointsRef = useRef({ start: null, end: null });
+
+  // const focusRunIdRef = useRef(0);
+  // const nextRunId = () => (++focusRunIdRef.current);
+  // const isStale = (id) => id !== focusRunIdRef.current;
+
+  // const awaitViewSettled = async () => {
+  //   await wait(0);
+  //   await wait(0);
+  //   await onceIdleOrTimeout(map.current, 500);
+  // };
 
   const buildingLabelOverlaysRef = useRef(new Map());
   const buildingLabelZoomListenerRef = useRef(null);
@@ -1373,41 +1383,34 @@ const MapComponent = () => {
         return;
       }
       
-      // START kiemelés – CSAK a start válthat nézetet
+      // 1) START/END highlighting (változatlan logika)
       if (dataStart.buildings?.[0]) {
         highlightRouteBuilding(dataStart.buildings[0], true);
       } else if (dataStart.rooms?.[0]) {
         await highlightRouteRoom(dataStart.rooms[0], true, { allowViewSwitch: true });
       }
 
-      // END kiemelés – SOHA ne válthasson nézetet
       if (dataEnd.buildings?.[0]) {
         highlightRouteBuilding(dataEnd.buildings[0], false);
       } else if (dataEnd.rooms?.[0]) {
         await highlightRouteRoom(dataEnd.rooms[0], false, { allowViewSwitch: false });
+      }
+
+      // 2) FÓKUSZ mindig a START-ra, de a highlightolt *típusnak megfelelően*
+      if (dataStart.rooms?.[0]) {
+        await focusRoom(dataStart.rooms[0]);           // beltér + szint + fitBounds + zoom
+      } else if (dataStart.buildings?.[0]) {
+        await focusBuilding(dataStart.buildings[0]);   // kültér + fitBounds + zoom
+      } else {
+        // fallback: node
+        const [sLng, sLat] = JSON.parse(startNode.coordinates)[0];
+        await flyTo(map.current, { lat: sLat, lng: sLng }, 20, 100);
       }
   
       // Állítsuk be a NavigationComponent-hez szükséges értékeket
       setStartLocation({ id: startNode.id, coordinates: startNode.coordinates });
       setEndLocation({ id: endNode.id, coordinates: endNode.coordinates });
       setClearRoute(false);
-
-      const demoSteps = [
-        { id: "s1", title: "Indulj a kezdőponttól", subtitle: "Kültér", kind: "outdoor", distanceLabel: "50 m" },
-        { id: "s2", title: "Lépj be az épületbe", subtitle: "Átmenet", kind: "transition" },
-        { id: "s3", title: "Haladj a folyosón", subtitle: "Földszint", kind: "indoor", distanceLabel: "120 m" },
-        { id: "s4", title: "Menj fel a 2. szintre", subtitle: "Lépcső", kind: "transition" },
-        { id: "s5", title: "Célig a folyosón", subtitle: "2. szint", kind: "indoor", distanceLabel: "180 m" },
-      ];
-
-      setRouteUI({
-        startLabel: startName,
-        endLabel: endName,
-        totalDistance: "350–450 m",  // demo
-        totalTime: "5–7 perc",       // demo
-        steps: demoSteps,
-        activeStepId: "s1",
-      });
 
 
       await ensureViewForStart(startNode, { preferOutdoor: startFromBuilding });
@@ -1427,8 +1430,7 @@ const MapComponent = () => {
       alert("Nem sikerült betölteni az útvonalat.");
     }
   };
-
-  // MapComponent-ben:
+  
   // MapComponent-ben:
   const handleRouteNodes = (pathNodes, meta = {}) => {
     setRouteUI((prev) => {
@@ -1496,6 +1498,7 @@ const MapComponent = () => {
          routeUI={routeUI}
          onStepClick={handleStepClick}
          onCloseSteps={handleCloseSteps}
+         routeDisabled={!!selectedGroup}
         />
       </div>
       <NavigationComponent
