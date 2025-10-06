@@ -1,23 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import "../AdminLook.css";
 
 const AdminObjectFilter = ({ floors, applyFilter, resetFilter }) => {
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("outdoor"); // "outdoor" | "indoor" | "all"
   const [selectedFloorNumber, setSelectedFloorNumber] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
 
+  const floorNumbers = useMemo(() => {
+    return [...new Set((floors ?? []).map(f => f.number))].sort((a, b) => a - b);
+  }, [floors]);
+
   const handleApplyFilter = () => {
     const filterData = { category: selectedCategory };
-
-    if (selectedCategory === "floor" && selectedFloorNumber !== null) {
+    if (selectedCategory === "indoor" && selectedFloorNumber !== null) {
       filterData.floorNumber = selectedFloorNumber;
     }
-
     applyFilter(filterData);
     setIsOpen(false);
   };
-
-  const floorNumbers = [...new Set(floors.map(f => f.number))].sort((a, b) => a - b);
 
   return (
     <div>
@@ -31,20 +31,22 @@ const AdminObjectFilter = ({ floors, applyFilter, resetFilter }) => {
           <select
             value={selectedCategory}
             onChange={(e) => {
-              setSelectedCategory(e.target.value);
+              const v = e.target.value;
+              setSelectedCategory(v);
               setSelectedFloorNumber(null);
             }}
           >
             <option value="">Válassz</option>
-            <option value="building">Épületek és kültéri kapcsolatok</option>
-            <option value="node_edge">Csak kültéri node-ok és edge-ek</option>
-            <option value="floor">Emelet és szobák</option>
+            <option value="outdoor">Kültér</option>
+            <option value="indoor">Beltér</option>
+            <option value="all">Minden</option>
           </select>
 
-          {selectedCategory === "floor" && (
+          {selectedCategory === "indoor" && (
             <>
               <label className="filter-container-lowtitle">Emelet szám:</label>
               <select
+                value={selectedFloorNumber ?? ""}
                 onChange={(e) =>
                   setSelectedFloorNumber(e.target.value ? Number(e.target.value) : null)
                 }
@@ -65,7 +67,14 @@ const AdminObjectFilter = ({ floors, applyFilter, resetFilter }) => {
           <button className="filter-close-btn" onClick={() => setIsOpen(false)}>
             Mégse
           </button>
-          <button className="filter-reset-btn" onClick={resetFilter}>
+          <button
+            className="filter-reset-btn"
+            onClick={() => {
+              resetFilter();
+              setSelectedCategory("outdoor");
+              setSelectedFloorNumber(null);
+            }}
+          >
             Szűrés visszaállítása
           </button>
         </div>

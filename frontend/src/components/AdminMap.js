@@ -123,7 +123,7 @@ const AdminMap = () => {
   const [buildings, setBuildings] = useState([]);
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
-  const [filter, setFilter] = useState(null);
+  const [filter, setFilter] = useState({ category: "outdoor" });
   const newPolygon = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -139,8 +139,13 @@ const AdminMap = () => {
   };
   
   const resetFilter = () => {
-    setFilter(null);
-    //console.log(" Szűrés visszaállítva");
+  setFilter({ category: "outdoor" }); // ⬅️ reset is kültérre áll vissza
+};
+
+  const makeFloorIdToNumber = (floorsArr) => {
+    const map = new Map();
+    (floorsArr || []).forEach(f => map.set(f.id, f.number));
+    return map;
   };
   useEffect(() => {
     const initMap = async () => {
@@ -191,6 +196,24 @@ const AdminMap = () => {
           iconUrl: edge.iconUrl,
           waypoints: edge.waypoints,
         })));
+
+
+        const floorIdToNumber = makeFloorIdToNumber(floors);
+        const isIndoorNodeForFloorNumber = (node, wantedNumber) => {
+          if (node.floorId == null) return false;
+          const num = floorIdToNumber.get(node.floorId);
+          return num === Number(wantedNumber);
+        };
+
+        const isIndoorEdgeForFloorNumber = (edge, wantedNumber) => {
+          // Edge akkor jelenjen meg beltérben, ha mindkét végpont az adott emeletszámon van
+          const fromNode = nodes.find(n => n.id === edge.fromNodeId);
+          const toNode   = nodes.find(n => n.id === edge.toNodeId);
+          if (!fromNode || !toNode) return false;
+          return isIndoorNodeForFloorNumber(fromNode, wantedNumber)
+              && isIndoorNodeForFloorNumber(toNode, wantedNumber);
+        };
+
 
         //console.log(" Lekért nodesRaw:", nodesRaw);
         
@@ -261,43 +284,35 @@ const AdminMap = () => {
             });
 
             if (filter) {
-              const { category, buildingId, floorNumber } = filter;
-            
-              if (category === "building") {
-                if (type === "node") {
-                  const hasBuilding = feature.properties.buildingId != null;
-                  const noFloor = feature.properties.floorId == null;
-                  if (!(hasBuilding && noFloor)) return;
-                } else if (type !== "building") {
-                  return;
-                }
-            
-                if (buildingId && feature.properties.id !== Number(buildingId)) return;
+              const { category, floorNumber } = filter;
+
+              if (category === "outdoor") {
+                // Kültér: csak az épületek jelenhetnek meg a polygonok közül
+                if (type !== "building") return;
               }
-            
-              if (category === "floor") {
+
+              if (category === "indoor") {
+                // Beltér: az összes épület polygon TILOS, csak az adott emeletszámhoz tartozó floors & rooms
+                if (type === "building") return;
+
                 if (type === "floor") {
+                  // csak azok a floor-ok, amelyek number === floorNumber
                   if (feature.properties.number !== Number(floorNumber)) return;
                 } else if (type === "room") {
+                  // csak azok a room-ok, amelyek floor-ja az adott emeletszám
                   const floor = floors.find(f => f.id === feature.properties.floorId);
                   if (!floor || floor.number !== Number(floorNumber)) return;
                 } else {
-                  return; // Csak floor és room jelenhet meg
+                  // más polygon típus nincs
+                  return;
                 }
               }
-            
-              // outdoor edges és node-ok külön kezelése
-              if (category === "node_edge") {
-                // csak outdoor edge-ek ÉS exit típusú node-ok
-                if (type === "node") {
-                  if (feature.properties.type !== "exit") return;
-                } else if (type === "edge") {
-                  if (feature.properties.type !== "outdoor") return;
-                } else {
-                  return; // minden mást elrejtünk (épület, floor, room)
-                }
+
+              if (category === "all") {
+                // mindent mutat
               }
             }
+
 
             polygon.setMap(map.current);
 
@@ -413,11 +428,24 @@ const AdminMap = () => {
 
         //EDGE-k megjelenítése és kiemelése
         edgesRaw.forEach((edge) => {
-          if (filter?.category === "floor") return;
+
+          const cat = filter?.category;
+
+          if (cat === "outdoor") {
+            const outdoorTypes = new Set(["outdoor", "path"]);
+            if (!outdoorTypes.has(edge.type)) return;
+          }
+
+          // Beltér: csak a kiválasztott emeletszám edge-jei
+          if (cat === "indoor") {
+            if (filter?.floorNumber == null) return;
+            if (!isIndoorEdgeForFloorNumber(edge, filter.floorNumber)) return;
+          }
+
           const path = edge.waypoints
             ? edge.waypoints.map(([lng, lat]) => ({ lat, lng }))
             : [];
-
+        
           const polyline = new window.google.maps.Polyline({
             path,
             strokeColor: "blue",
@@ -425,7 +453,7 @@ const AdminMap = () => {
             editable: true,
             map: map.current,
           });
-
+          
           polyline.addListener("click", () => {
             activeEdges.forEach(e => e.setMap(null));
             activeEdges = [];
@@ -459,32 +487,38 @@ const AdminMap = () => {
                 
         //Nodok megjelenítése és kiemelése
         nodesRaw.forEach((node) => {
-          if (filter?.category === "floor") return;
+          const cat = filter?.category;
+
+          // Kültér: csak exit/outdoor típusú node
+          if (cat === "outdoor") {
+            const allowedNodeTypes = new Set(["exit", "outdoor"]);
+            if (!allowedNodeTypes.has(node.type)) return;
+          }
+
+          // Beltér: csak a kiválasztott emeletszámon lévő node-ok
+          if (cat === "indoor") {
+            if (filter?.floorNumber == null) return;
+            if (!isIndoorNodeForFloorNumber(node, filter.floorNumber)) return;
+          }
+
+          // "all" eset: mindent rajzol
+
           const { id, name, coordinates } = node;
-        
-          let parsedCoordinates;
-          if (typeof coordinates === "string") {
-            try {
-              parsedCoordinates = JSON.parse(coordinates);
-            } catch (error) {
-              console.warn(`JSON.parse hiba a node-nál (id: ${id}):`, coordinates);
-              return;
-            }
-          } else if (Array.isArray(coordinates)) {
-            parsedCoordinates = coordinates;
-          } else {
+          let parsedCoordinates = Array.isArray(coordinates)
+            ? coordinates
+            : (() => {
+                try { return JSON.parse(coordinates); }
+                catch { return null; }
+              })();
+
+          if (!Array.isArray(parsedCoordinates) || !Array.isArray(parsedCoordinates[0]) || parsedCoordinates[0].length !== 2) {
             console.warn(`Érvénytelen koordináták (id: ${id}):`, coordinates);
             return;
           }
-        
-          if (!Array.isArray(parsedCoordinates) || !Array.isArray(parsedCoordinates[0]) || parsedCoordinates[0].length !== 2) {
-            console.warn(`Érvénytelen parsed koordináták (id: ${id}):`, parsedCoordinates);
-            return;
-          }
-        
+
           const [lng, lat] = parsedCoordinates[0];
           const position = { lat, lng };
-       
+
           const marker = new window.google.maps.Marker({
             position,
             map: map.current,
