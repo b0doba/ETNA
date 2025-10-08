@@ -579,116 +579,139 @@ const AdminMap = () => {
     initMap();
   }, [mapRefreshTrigger, filter]);
 
-  const simplifyPolygon = (points, minDistance = 0.0000001) => {
-    if (points.length < 4) return points; // Ha túl kevés pont van, nem módosítunk
+  // Csak egymást követő duplikált/0-hosszú pontok törlése (edge szerkesztéshez)
+  const simplifyPolylineForEdit = (points, epsMeters = 0.01) => {
+    if (!Array.isArray(points) || points.length < 2) return points || [];
+    // fok ~ méter átváltás (durván, szélességi kör szerint)
+    const epsDeg = epsMeters / 111320; // ~0.01 m alapértelmezés
+    const sqEps = epsDeg * epsDeg;
 
-    const sqMinDistance = minDistance * minDistance;
-
-    // Euklideszi távolság négyzetes formában
-    const getSqDist = (p1, p2) => {
-        const dx = p1[0] - p2[0];
-        const dy = p1[1] - p2[1];
-        return dx * dx + dy * dy;
+    const sqDist = (a, b) => {
+      const dx = a[0] - b[0], dy = a[1] - b[1];
+      return dx*dx + dy*dy;
     };
 
-    let filteredPoints = [];
-
-    for (let i = 0; i < points.length; i++) {
-        let isDuplicate = false;
-
-        for (let j = 0; j < filteredPoints.length; j++) {
-            if (getSqDist(points[i], filteredPoints[j]) < sqMinDistance) {
-                isDuplicate = true;
-                break;
-            }
-        }
-
-        if (!isDuplicate) {
-            filteredPoints.push(points[i]);
-        }
+    const out = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+      if (sqDist(points[i], out[out.length - 1]) > sqEps) {
+        out.push(points[i]);
+      }
     }
-
-    // Egyenes vonalon lévő felesleges pontok eltávolítása
-    const removeCollinearPoints = (points) => {
-        if (points.length < 4) return points;
-
-        const isCollinear = (p1, p2, p3) => {
-            return Math.abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) < 1e-10;
-        };
-
-        let result = [points[0]]; // Az első pontot mindig megtartjuk
-
-        for (let i = 1; i < points.length - 1; i++) {
-            if (!isCollinear(points[i - 1], points[i], points[i + 1])) {
-                result.push(points[i]); // Csak akkor tartjuk meg, ha nem egy egyenes része
-            }
-        }
-
-        result.push(points[points.length - 1]); // Az utolsó pontot mindig megtartjuk
-        return result;
-    };
-
-    // Egyenes vonalakat egyszerűsítjük
-    filteredPoints = removeCollinearPoints(filteredPoints);
-
-    // Ha az utolsó pont nem egyezik meg az elsővel, biztosítjuk a zártságot
-    if (filteredPoints.length > 2 &&
-        (filteredPoints[0][0] !== filteredPoints[filteredPoints.length - 1][0] ||
-         filteredPoints[0][1] !== filteredPoints[filteredPoints.length - 1][1])) {
-        filteredPoints.push([...filteredPoints[0]]);
-    }
-
-    return filteredPoints;
-};
-
-const simplifyPolyline = (points, minDistance = 0.0000001) => {
-  if (points.length < 3) return points;
-
-  const sqMinDistance = minDistance * minDistance;
-
-  const getSqDist = (p1, p2) => {
-      const dx = p1[0] - p2[0];
-      const dy = p1[1] - p2[1];
-      return dx * dx + dy * dy;
+    // ha valami okból 1 pont maradna, duplikáljuk hogy legalább 2 legyen
+    if (out.length === 1 && points.length >= 2) out.push(points[points.length - 1]);
+    return out;
   };
 
-  // Távolság alapú szűrés
-  let filteredPoints = [];
-  for (let i = 0; i < points.length; i++) {
-      let isDuplicate = false;
+//   const simplifyPolygon = (points, minDistance = 0.0000001) => {
+//     if (points.length < 4) return points; // Ha túl kevés pont van, nem módosítunk
 
-      for (let j = 0; j < filteredPoints.length; j++) {
-          if (getSqDist(points[i], filteredPoints[j]) < sqMinDistance) {
-              isDuplicate = true;
-              break;
-          }
-      }
+//     const sqMinDistance = minDistance * minDistance;
 
-      if (!isDuplicate) {
-          filteredPoints.push(points[i]);
-      }
-  }
+//     // Euklideszi távolság négyzetes formában
+//     const getSqDist = (p1, p2) => {
+//         const dx = p1[0] - p2[0];
+//         const dy = p1[1] - p2[1];
+//         return dx * dx + dy * dy;
+//     };
 
-  // Kollineáris pontok kiszűrése
-  const removeCollinearPoints = (points) => {
-      if (points.length < 3) return points;
+//     let filteredPoints = [];
 
-      const isCollinear = (p1, p2, p3) => {
-          return Math.abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) < 1e-8;
-      };
+//     for (let i = 0; i < points.length; i++) {
+//         let isDuplicate = false;
 
-      let result = [points[0]];
-      for (let i = 1; i < points.length - 1; i++) {
-          if (!isCollinear(points[i - 1], points[i], points[i + 1])) {
-              result.push(points[i]);
-          }
-      }
-      result.push(points[points.length - 1]);
-      return result;
-  };
+//         for (let j = 0; j < filteredPoints.length; j++) {
+//             if (getSqDist(points[i], filteredPoints[j]) < sqMinDistance) {
+//                 isDuplicate = true;
+//                 break;
+//             }
+//         }
 
-  return removeCollinearPoints(filteredPoints);
-};
+//         if (!isDuplicate) {
+//             filteredPoints.push(points[i]);
+//         }
+//     }
+
+//     // Egyenes vonalon lévő felesleges pontok eltávolítása
+//     const removeCollinearPoints = (points) => {
+//         if (points.length < 4) return points;
+
+//         const isCollinear = (p1, p2, p3) => {
+//             return Math.abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) < 1e-10;
+//         };
+
+//         let result = [points[0]]; // Az első pontot mindig megtartjuk
+
+//         for (let i = 1; i < points.length - 1; i++) {
+//             if (!isCollinear(points[i - 1], points[i], points[i + 1])) {
+//                 result.push(points[i]); // Csak akkor tartjuk meg, ha nem egy egyenes része
+//             }
+//         }
+
+//         result.push(points[points.length - 1]); // Az utolsó pontot mindig megtartjuk
+//         return result;
+//     };
+
+//     // Egyenes vonalakat egyszerűsítjük
+//     filteredPoints = removeCollinearPoints(filteredPoints);
+
+//     // Ha az utolsó pont nem egyezik meg az elsővel, biztosítjuk a zártságot
+//     if (filteredPoints.length > 2 &&
+//         (filteredPoints[0][0] !== filteredPoints[filteredPoints.length - 1][0] ||
+//          filteredPoints[0][1] !== filteredPoints[filteredPoints.length - 1][1])) {
+//         filteredPoints.push([...filteredPoints[0]]);
+//     }
+
+//     return filteredPoints;
+// };
+
+// const simplifyPolyline = (points, minDistance = 0.0000001) => {
+//   if (points.length < 3) return points;
+
+//   const sqMinDistance = minDistance * minDistance;
+
+//   const getSqDist = (p1, p2) => {
+//       const dx = p1[0] - p2[0];
+//       const dy = p1[1] - p2[1];
+//       return dx * dx + dy * dy;
+//   };
+
+//   // Távolság alapú szűrés
+//   let filteredPoints = [];
+//   for (let i = 0; i < points.length; i++) {
+//       let isDuplicate = false;
+
+//       for (let j = 0; j < filteredPoints.length; j++) {
+//           if (getSqDist(points[i], filteredPoints[j]) < sqMinDistance) {
+//               isDuplicate = true;
+//               break;
+//           }
+//       }
+
+//       if (!isDuplicate) {
+//           filteredPoints.push(points[i]);
+//       }
+//   }
+
+//   // Kollineáris pontok kiszűrése
+//   const removeCollinearPoints = (points) => {
+//       if (points.length < 3) return points;
+
+//       const isCollinear = (p1, p2, p3) => {
+//           return Math.abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) < 1e-8;
+//       };
+
+//       let result = [points[0]];
+//       for (let i = 1; i < points.length - 1; i++) {
+//           if (!isCollinear(points[i - 1], points[i], points[i + 1])) {
+//               result.push(points[i]);
+//           }
+//       }
+//       result.push(points[points.length - 1]);
+//       return result;
+//   };
+
+//   return removeCollinearPoints(filteredPoints);
+// };
 
   const handleSave = async () => {
     if (!selectedData || !selectedData.category) {
@@ -735,7 +758,7 @@ const simplifyPolyline = (points, minDistance = 0.0000001) => {
       payload = {
         floorId: selectedData.floorId,
         name: selectedData.name || "",
-        type: selectedData.type || "",
+        type: selectedData.type && selectedData.type.trim() !== "" ? selectedData.type : "terem",
         coordinates: selectedData.coordinates || [],
       };
     } else if (selectedData.category === "node") {
@@ -845,7 +868,7 @@ const simplifyPolyline = (points, minDistance = 0.0000001) => {
         .getArray()
         .map((latLng) => [latLng.lng(), latLng.lat()]);
 
-      const simplifiedWaypoints = simplifyPolyline(waypoints, 0.0000001);
+      const simplifiedWaypoints = simplifyPolylineForEdit(waypoints, 0.01);
   
       const payload = {
         id: selectedFeature.current.id,

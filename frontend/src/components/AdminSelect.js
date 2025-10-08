@@ -1,6 +1,17 @@
 import React from "react";
 import "../AdminLook.css";
 
+const BUILDING_GROUPS = [
+  "Kollégiumok",
+  "Sportcsarnokok",
+  "Parkolók",
+  "Tanulmányi épületek",
+  "Rendezvények",
+];
+
+const EDGE_TYPES = ["hallway", "stairs", "path", "outdoor"];
+const NODE_TYPES = ["exit", "hallway", "stairs", "terem", "outdoor"];
+
 const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleSave, saveUpdatedFeature, showEdgeForm, nodes }) => {
   
   if (!selectedData) return null;
@@ -36,11 +47,19 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
             onChange={(e) => setSelectedData({ ...selectedData, shortName: e.target.value })}
           />
           <label>Csoport:</label>
-          <input
-            type="text"
+          <select
             value={selectedData.group || ""}
             onChange={(e) => setSelectedData({ ...selectedData, group: e.target.value })}
-          />
+          >
+            <option value="">Válassz csoportot</option>
+            {BUILDING_GROUPS.map(g => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+            {/* Ha régebbi adatban egyedi csoportnév volt, jelenítsük meg, hogy ne vesszen el */}
+            {selectedData.group && !BUILDING_GROUPS.includes(selectedData.group) && (
+              <option value={selectedData.group}>{selectedData.group} (egyedi)</option>
+            )}
+          </select>
           <label>Kapcsolat:</label>
           <input
             type="text"
@@ -129,12 +148,6 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
             value={selectedData.name || ""}
             onChange={(e) => setSelectedData({ ...selectedData, name: e.target.value })}
           />
-          <label>Típus:</label>
-          <input
-            type="text"
-            value={selectedData.type || ""}
-            onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })}
-          />
         </div>
       )}
       {selectedData.category === "node" && (
@@ -146,11 +159,15 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
             onChange={(e) => setSelectedData({ ...selectedData, name: e.target.value })}
           />
           <label>Típus:</label>
-          <input
-            type="text"
+          <select
             value={selectedData.type || ""}
             onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })}
-          />
+          >
+            <option value="">Válassz típust</option>
+            {NODE_TYPES.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
           <label>Ikon URL:</label>
           <input
             type="text"
@@ -192,7 +209,15 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
       {selectedData.category === "edge" && selectedData.id && (
         <div className="info-fields">
           <label>Típus:</label>
-          <input type="text" value={selectedData.type || ""} onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })} />
+          <select
+            value={selectedData.type || ""}
+            onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })}
+          >
+            <option value="">Válassz típust</option>
+            {EDGE_TYPES.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
           <label>Ikon URL:</label>
           <input type="text" value={selectedData.iconUrl || ""} onChange={(e) => setSelectedData({ ...selectedData, iconUrl: e.target.value })} />
           <p><strong>From:</strong> {selectedData.fromNodeId}, <strong>To:</strong> {selectedData.toNodeId}</p>
@@ -230,11 +255,15 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
               ))}
             </select>
           <label>Típus:</label>
-          <input
-            type="text"
+          <select
             value={selectedData.type || ""}
             onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })}
-          />
+          >
+            <option value="">Válassz típust</option>
+            {EDGE_TYPES.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
           <label>Ikon URL:</label>
           <input
             type="text"

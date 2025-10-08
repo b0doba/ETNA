@@ -1499,6 +1499,14 @@ const MapComponent = () => {
          onStepClick={handleStepClick}
          onCloseSteps={handleCloseSteps}
          routeDisabled={!!selectedGroup}
+         isBuildingView={isBuildingView}
+         currentFloor={currentFloor}
+         selectedGroup={selectedGroup}
+         onClearGroup={() => {
+          setSelectedGroup(null);
+          setSearchHighlightedRoom(null);
+          setSearchHighlightedBuilding(null);
+        }}
         />
       </div>
       <NavigationComponent

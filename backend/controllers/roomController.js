@@ -323,7 +323,7 @@ async function getRooms (req, res) {
             floorId: newRoom.floorId,
             buildingId: newRoom.floor.buildingId,
             coordinates: JSON.stringify(finalCoord),
-            iconUrl: "school.svg",
+            iconUrl: "",
           },
         });
       }
