@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import SearchPanel from "./SearchPanel.js";
 import loadGoogleMapsScript from "./loadGoogleMap";
 import NavigationComponent from "./NavigationComponent";
+import LocateMeButton from "./LocateMeButton";
 //import Map3DControls from "./Map3DControls";
 
 
@@ -30,6 +31,7 @@ const MapComponent = () => {
   const BUILD_STEP_WHITELIST = new Set(["exit", "stairs", "EXIT", "STAIRS"]);
   const lastRouteNamesRef = useRef({ start: "", end: "" });
   const routeEndpointsRef = useRef({ start: null, end: null });
+  const isStairsNode = (n) => ((n?.type || n?.nodeType || "").toLowerCase() === "stairs");
 
   // const focusRunIdRef = useRef(0);
   // const nextRunId = () => (++focusRunIdRef.current);
@@ -425,6 +427,30 @@ const MapComponent = () => {
     };
   }, [isBuildingView, currentFloor, floorGroup, selectedGroup, mapReady, currentMapId]);
 
+  const collapseStairRuns = (nodes = []) => {
+    const out = [];
+    let i = 0;
+    while (i < nodes.length) {
+      if (!isStairsNode(nodes[i])) {
+        out.push(nodes[i]);
+        i++;
+        continue;
+      }
+      // stairs futam vége
+      let j = i;
+      while (j < nodes.length && isStairsNode(nodes[j])) j++;
+      const len = j - i;
+      if (len >= 3) {
+        out.push(nodes[i]);       // alsó (útvonal-sorrend eleje)
+        out.push(nodes[j - 1]);   // felső (útvonal-sorrend vége)
+      } else {
+        for (let k = i; k < j; k++) out.push(nodes[k]);
+      }
+      i = j;
+    }
+    return out;
+  };
+
   const buildStepsFromNodes = (pathNodes = [], startLabel, endLabel) => {
     const steps = [];
 
@@ -450,8 +476,10 @@ const MapComponent = () => {
       steps.push({ id: "start", title: startLabel || "Kezdőpont", kind: "transition" });
     }
 
+    const reducedNodes = collapseStairRuns(pathNodes);
+
     // Közbenső node-ok (csak stairs/exit, ahogy eddig)
-    pathNodes.forEach((n, i) => {
+    reducedNodes.forEach((n, i) => {
       const t = (n.type || n.nodeType || "").toLowerCase();
       if (!BUILD_STEP_WHITELIST.has(t)) return;
       steps.push({
@@ -1475,11 +1503,9 @@ const MapComponent = () => {
       />
     </button>
     <div className="top-ui-wrapper">
-      <button className="toggle-hud-btn" onClick={toggleHUD}>
-        {hudHidden ? '▶' : '◀'}
-      </button>
       <SearchPanel
         hudHidden={hudHidden}
+        onToggleHUD={toggleHUD}       
         onSearch={handleSearch}
         onRouteSearch={handleRouteSearch}
         onGroupSelect={handleGroupSelect}
@@ -1496,6 +1522,7 @@ const MapComponent = () => {
           setSearchHighlightedBuilding(null);
         }}
          routeUI={routeUI}
+         selectedBuilding={selectedBuilding}
          onStepClick={handleStepClick}
          onCloseSteps={handleCloseSteps}
          routeDisabled={!!selectedGroup}
@@ -1522,7 +1549,7 @@ const MapComponent = () => {
       {loading && <p>Betöltés...</p>}
       {error && <p style={{ color: "blue" }}>Hiba történt: {error}</p>}
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
-      
+      <LocateMeButton map={map.current} />
       {isBuildingView && availableFloorNumbers.length > 0 && (
         <div className="slider-container"
           onWheel={(e) => {

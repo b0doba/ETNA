@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import "../App.css";
 
-const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hudHidden, delHighlight, routeUI, onStepClick, onCloseSteps, routeDisabled = false  }) => {
+const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect,
+  onCancelRoute, hudHidden, delHighlight, routeUI, onStepClick, onCloseSteps, routeDisabled = false, isBuildingView,
+  currentFloor, selectedGroup, onClearGroup, onToggleHUD, selectedBuilding}) => {
   const [showRouteInputs, setShowRouteInputs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [startPoint, setStartPoint] = useState("");
@@ -12,41 +14,47 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
   const [activeInput, setActiveInput] = useState("search");
   const searchIcon = "/assets/icons/arrow.svg";
   const routeIcon =  "/assets/icons/pitch.svg";
+  const canRoute = !!startPoint.trim() && !!destination.trim();
 
   const [stepsOpen, setStepsOpen] = useState(false);
+
+  const [noResults, setNoResults] = useState(false);
   
   useEffect(() => {
     const fetchSuggestions = async (query) => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      setNoResults(false);
+      return;
+    }
 
-      
-      
-      if (!query.trim()) {
+    setSelectedIndex(-1);
+    suggestionRefs.current = [];
+
+    try {
+      const resp = await fetch(`http://localhost:5000/api/search?q=${encodeURIComponent(query)}`);
+      const data = await resp.json();
+
+      const results = [
+        ...data.buildings.map((b) => ({ name: b.name, type: "Épület" })),
+        ...data.rooms.map((r) => ({ name: r.name, type: "Terem" })),
+      ];
+
+      // ha pontos egyezés van, ne mutassunk listát; üres állapot se legyen
+      if (results.some(item => item.name.toLowerCase() === query.toLowerCase())) {
         setSuggestions([]);
-        return;
+        setNoResults(false);
+      } else {
+        setSuggestions(results);
+        setNoResults(results.length === 0);
       }
+    } catch (e) {
+      console.error("Suggesztió hiba:", e);
+      setSuggestions([]);
+      setNoResults(true);
+    }
+  };
 
-      setSelectedIndex(-1);
-      suggestionRefs.current = [];
-
-      
-      try {
-        const response = await fetch(`http://localhost:5000/api/search?q=${query}`);
-        const data = await response.json();
-
-        let results = [
-          ...data.buildings.map((b) => ({ name: b.name, type: "Épület" })),
-          ...data.rooms.map((r) => ({ name: r.name, type: "Terem" }))
-        ];
-
-        if (results.some(item => item.name === query)) {
-          setSuggestions([]);
-        } else {
-          setSuggestions(results);
-        }
-      } catch (error) {
-        console.error("Hiba a keresési javaslatok betöltésekor:", error);
-      }
-    };
 
     if (activeInput === "search") fetchSuggestions(searchQuery);
     if (activeInput === "start") fetchSuggestions(startPoint);
@@ -72,8 +80,6 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect, onCancelRoute, hu
       alert("Kérlek add meg mindkét helyet az útvonaltervezéshez!");
       return;
     }
-    console.log("Kezdőpont: ",startPoint, "Úticél: ",destination)
-    
     onRouteSearch(startPoint, destination, suggestions);
   };
   
@@ -97,7 +103,9 @@ useEffect(() => {
 }, [routeUI?.steps?.length]);
 
   const handleSearch = () => {
-    onSearch(searchQuery);
+    const q = searchQuery.trim();
+    if (!q) return;
+    onSearch(q);
     setSuggestions([]);
   };
 
@@ -114,19 +122,65 @@ useEffect(() => {
    onGroupSelect?.(group);
  };
 
+  const StatusChip = ({ isBuildingView, currentFloor, selectedGroup, onClearGroup }) => {
+    const clean = (s) => (s || "").replace(/"/g, "").trim();
+    const mode = isBuildingView
+    ? `Belső nézet • ${clean(selectedBuilding) || "—"} • Szint: ${currentFloor ?? "-"}`
+    : `Külső nézet${selectedGroup ? ` • ${clean(selectedGroup)}` : ""}`;
+
+
+    const showClear = !isBuildingView && !!selectedGroup;
+
+    return (
+      <div className="status-chip">
+        <span className="status-dot" aria-hidden="true" />
+        <span className="status-text">{mode}</span>
+        {showClear && (
+          <button className="status-clear" onClick={onClearGroup} title="Kilépés a csoportból">×</button>
+        )}
+      </div>
+    );
+  };
+
+  const EmptyState = ({ onPick }) => (
+    <div className="empty-state">
+      <div className="empty-title">Nincs találat</div>
+      <div className="empty-tip">Próbáld például: "UT-101"</div>
+    </div>
+  );
+
   return (
     <>
+     <div className="search-shell">
+      <button
+        className={`toggle-hud-btn ${hudHidden ? "compact" : ""}`}
+        onClick={onToggleHUD}          
+        aria-label={hudHidden ? "Oldalsáv megnyitása" : "Oldalsáv elrejtése"}
+        title={hudHidden ? "Megnyitás" : "Elrejtés"}
+      >
+        {hudHidden ? '▶' : '◀'}
+      </button>
     <div className={`search-panel ${hudHidden ? 'hidden' : ''}`}>
+      <StatusChip
+        isBuildingView={isBuildingView}
+        currentFloor={currentFloor}
+        selectedGroup={selectedGroup}
+        onClearGroup={onClearGroup}
+        selectedBuilding={selectedBuilding}
+      />
+
+      {/* Legutóbbi keresések chipek */}
       {!showRouteInputs ? (
         <div className="search-bar">
           <div className="autocomplete">
               <input
                 type="text"
-                placeholder="Keresés..."
+                placeholder="Keresés.. (pl. D302)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setActiveInput("search")}
                 onKeyDown={(e) => {
+                  if ((e.key === "ArrowDown" || e.key === "ArrowUp") && suggestions.length === 0) return;
                   if (e.key === "ArrowDown") {
                     setSelectedIndex((prev) => (prev + 1) % suggestions.length);
                   } else if (e.key === "ArrowUp") {
@@ -161,6 +215,9 @@ useEffect(() => {
                   ))}
                 </ul>
               )}
+              {noResults && activeInput === "search" && (
+                <EmptyState onPick={(v) => { setSearchQuery(v); setNoResults(false); }} />
+              )}
             </div>
             <button className="search-btn" onClick={handleSearch}>
               <img src={searchIcon} alt="Keresés" title="Keresés"/>
@@ -185,7 +242,7 @@ useEffect(() => {
             <div className="autocomplete">
               <input className="route-input"
                 type="text"
-                placeholder="Kiindulópont"
+                placeholder="Honnan indulsz?"
                 value={startPoint}
                 onChange={(e) => setStartPoint(e.target.value)}
                 onFocus={() => setActiveInput("start")}
@@ -223,11 +280,14 @@ useEffect(() => {
                   ))}
                 </ul>
               )}
+              {noResults && activeInput === "start" && (
+                <EmptyState onPick={(v) => { setSearchQuery(v); setNoResults(false); }} />
+              )}
             </div>
             <div className="autocomplete">
               <input className="route-input"
                 type="text"
-                placeholder="Úticél"
+                placeholder="Hová mennél?"
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 onFocus={() => setActiveInput("destination")}
@@ -265,10 +325,19 @@ useEffect(() => {
                   ))}
                 </ul>
               )}
+              {noResults && activeInput === "destination" && (
+                <EmptyState onPick={(v) => { setSearchQuery(v); setNoResults(false); }} />
+              )}
             </div>
-          <button className="route-btn search-route-btn" onClick={() => {onCancelRoute();handleRouteSearch();}}>
+          <button
+            className={`route-btn search-route-btn ${!canRoute ? "secondary" : ""}`}
+            onClick={() => { onCancelRoute(); handleRouteSearch(); }}
+            disabled={!canRoute}
+            title={!canRoute ? "Add meg a kezdőpontot és az úticélt" : "Útvonaltervezés indítása"}
+          >
             Útvonaltervezés
           </button>
+
           <button
             className="route-btn"
             onClick={() => {
@@ -341,6 +410,7 @@ useEffect(() => {
         <button className="category-btn" onClick={() => handleGroupClick("Tanulmányi épületek")}>Tanulmányi Épületek</button>
         <button className="category-btn">Rendezvények</button>
       </div>
+    </div>
     </div>
     </>
   );

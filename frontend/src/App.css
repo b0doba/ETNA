@@ -51,18 +51,27 @@ html, body {
 .search-panel {
   display: flex;
   flex-direction: column;
-  position: absolute;
-  top: 1vh;
-  left: 1vh;
+  position: relative;
   background: white;
-  border-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
   padding: 30px;
   box-shadow: 0 3px 5px rgba(0, 0, 0, 0.25);
-  gap: 10px; /* Jobb elválasztás az elemek között */
   z-index: 1000;
-  width: min(90vw, 300px);
+  width: 300px;   
   max-width: 100vw;
   height: auto;
+  transition: width .35s ease, opacity .35s ease, transform .35s ease;
+}
+
+.search-panel.hidden {
+  width: 0;                     /* szépen összecsukódik */
+  padding-left: 0;
+  padding-right: 0;
+  opacity: 0;
+  transform: translateX(-10px); /* kis csúszás balra */
+  overflow: hidden;             /* tartalom ne lógjon ki */
+  pointer-events: none;         /* ne lehessen kattintani */
 }
 
 .search-bar {
@@ -70,7 +79,12 @@ html, body {
   align-items: center;
   gap: 5px;
   width: 100%;
-  margin-left: 10px;
+  margin-left: 0px;
+}
+
+.search-bar .autocomplete {
+  flex: 1 1 auto;     /* <-- ez engedi, hogy széles legyen */
+  min-width: 0;       /* flex overflow bug ellen */
 }
 
 .search-bar input {
@@ -79,7 +93,7 @@ html, body {
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 0.9rem;
-  width: 100%;
+  box-sizing: border-box;
   height: 20px;
 }
 
@@ -92,7 +106,6 @@ html, body {
   background: #01acc8;
   color: white;
   border: none;
-  margin-left: 8%;
   padding: 12px 10px;
   border-radius: 4px;
   cursor: pointer;
@@ -154,7 +167,7 @@ html, body {
   background: #01acc8;
   position: center;
   color: white;
-  width: 108%;
+  width: 100%;
   font-size: 0.9rem;
 }
 
@@ -171,9 +184,8 @@ html, body {
 
 /* Kategória gombok stílusa */
 .category-buttons {
-  position: absolute;
-  top: 1vh;
-  left: 390px;
+  position: relative;
+  left: 1vh;
   display: flex;
   gap: 10px;
   z-index: 1000;
@@ -207,79 +219,6 @@ html, body {
   flex-direction: column;
   gap: 10px;
 }
-
-
-
-/* @media (max-width: 1024px) {
-  
-  .search-panel {
-    position: relative !important;
-  }
-
-  .category-buttons-wrapper{
-    position: relative;
-  }
-
-  .category-buttons {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    gap: 10px;
-    padding: 10px;
-    max-width: 100%;
-    width: 100%;
-    left: 1vh !important;
-    box-sizing: border-box;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .category-buttons::-webkit-scrollbar {
-    display: none;
-  }
-
-  .category-btn {
-    flex: 0 0 auto;
-  }
-
-  .toggle-hud-btn{
-    height: 102px !important;
-  }
-
-  .top-ui-wrapper {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-@media (max-width: 776px) { 
-  .description{
-    display: none;
-  }
-
-  .search-panel{
-    margin-right: 15px;
-    width: auto;
-  }
-
-  .category-buttons{
-    min-width: 50px;
-    margin-right: 15px;
-  }
-
-  .toggle-hud-btn{
-    height: 102px;
-  }
-
-  .map-3d-controls {
-    top: auto !important;
-    bottom: 30px !important;
-    right: 10px !important;
-  }
-} */
-
 
 .map-3d-btn {
   background: white;
@@ -386,54 +325,70 @@ html, body {
 .autocomplete {
   position: relative;
   width: 100%;
+  flex: 1 1 auto;
 }
 
 .autocomplete input {
   width: 100%;
-  padding: 10px;
+  padding: 20px;
   border: 1px solid #ccc;
   border-radius: 5px;
+  box-sizing: border-box;
 }
 
+/* <<< TÖRÖLD a korábbi duplikált/autocomplete-list verziókat és tartsd ezt >>> */
 .autocomplete-list {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 4px);
   left: 0;
-  width: 110%;
-  background: white;
-  border: 1px solid #ccc;
-  border-top: none;
-  max-height: 200px;
-  overflow-y: auto;
+  right: 0;                 /* ettől lesz pontosan input-szélességű */
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  max-height: 220px;
+  overflow: auto;
   list-style: none;
   padding: 0;
   margin: 0;
   z-index: 2000;
+  box-sizing: border-box;   /* keret beleszámít */
 }
-
 .autocomplete-list li {
-  padding: 10px;
+  padding: 8px 10px;
   cursor: pointer;
+  font-size: 14px;
+}
+.autocomplete-list li.selected,
+.autocomplete-list li:hover {
+  background: #f3f4f6;
 }
 
-.autocomplete-list li:hover {
-  background: #f0f0f0;
+.search-shell {
+  display: flex;
+  align-items: stretch;    /* ⬅️ ettől nyúlik a toggle a panel magasságához */
+  position: relative;
+  z-index: 1500;           /* maradjon a térkép fölött */
 }
+
 
 .toggle-hud-btn {
-  position: absolute;
-  top: 1vh;
-  left: 1vh;
-  z-index: 1500;
-  background: rgb(246, 250, 255);
-  color: #01acc8;
+  align-self: stretch;
+  height: auto;            
+  width: 26px;
+  min-width: 26px;
   border: none;
-  border-radius: 8px;
-  padding: 4.52% 0.5%;
-  font-size: 0.7rem;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+  background: #f8fbff;
+  color: #01acc8;
   cursor: pointer;
-  height: 151px;
-  width: 25px;
+  font-size: 0.8rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+  z-index: 1001;
+  transition: all 0.35s ease;
 }
 
 .toggle-hud-btn:hover{
@@ -446,10 +401,12 @@ html, body {
   pointer-events: none;
 }
 
-.search-panel,
-.category-buttons,
-.slider-container {
-  transition: all 0.4s ease;
+.toggle-hud-btn.compact {
+  height: 30px;               
+  align-self: flex-start;      
+  border-radius: 8px;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.15);
+  z-index: 1500;
 }
 
 .autocomplete-list li.selected {
@@ -699,7 +656,7 @@ html, body {
 .route-step-hint{
   margin-top: 4px;
   font-size: .82rem;
-  color: #64748b;       /* finom szürke */
+  color: #01acc8;       
   line-height: 1.25;
 }
 
@@ -713,9 +670,129 @@ html, body {
   cursor: not-allowed;
 }
 
+/* Status chip */
+/* alap */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f8fbff;                 /* majdnem fehér-kék */
+  color: #01acc8;                     /* kékes szöveg */
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.status-chip--indoor {
+  /* belső nézet: picit erősebb háttér, hogy elváljon */
+  background: #eef6ff;
+  border-color: #cfe4ff;
+  color: #01acc8;
+}
+
+.status-chip--outdoor {
+  /* külső nézet: még fehéresebb */
+  background: #ffffff;
+  border-color: #e5f0ff;
+  color: #01acc8;
+}
+
+.status-dot {
+  width: 8px; height: 8px; border-radius: 999px;
+  background: currentColor;           /* szín öröklődik */
+  box-shadow: 0 0 0 2px rgba(14,165,233,0.15);
+}
+
+.status-text { font-size: 12px; }
+.status-clear {
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 16px; line-height: 1; color: inherit; opacity: .7;
+}
+.status-clear:hover { opacity: 1; }
+
+/* Empty state */
+.empty-state {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 60;
+
+  padding: 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.08);
+}
+
+.empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.empty-tip {
+  font-size: 12px;
+  color: #6b7280;
+}
+/* Route button: secondary állapot */
+.route-btn.secondary {
+  opacity: 0.65;
+}
+.route-btn.secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Autocomplete lista (ha még nincs) */
+.autocomplete-list {
+  position: absolute;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 220px;
+  overflow: auto;
+  width: 100%;
+}
+.autocomplete-list li {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.autocomplete-list li.selected,
+.autocomplete-list li:hover {
+  background: #f3f4f6;
+}
 
 
+.locate-me-btn {
+  position: absolute;
+  left: 10px;
+  bottom: 30px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .12s ease, opacity .12s ease;
+  opacity: .95;
+}
 
+.locate-me-btn svg path,
+.locate-me-btn svg circle {
+  fill: #01acc8;
+}
+
+.locate-me-btn:hover { transform: translateY(-1px); }
+.locate-me-btn:active { transform: translateY(0); box-shadow: 0 1px 5px rgba(0,0,0,.18); }
+.locate-me-btn:disabled { opacity: .6; cursor: not-allowed; }
+.locate-me-btn svg { fill: #111; }
 
 
 
