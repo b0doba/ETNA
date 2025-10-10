@@ -116,6 +116,12 @@ useEffect(() => {
      setShowRouteInputs(false);
      onCancelRoute?.();
    }
+
+   if (selectedGroup === group) {
+    onClearGroup?.();
+    return;
+  }
+
    // biztos, ami biztos: töröljük a kiemeléseket
    delHighlight?.();
    // végül mehet a csoportválasztás
@@ -404,11 +410,22 @@ useEffect(() => {
     </div>
     <div className={`category-buttons-wrapper ${hudHidden ? 'hidden' : ''}`}>
       <div className="category-buttons">
-        <button className="category-btn" onClick={() => handleGroupClick("Kollégiumok")}>Kollégiumok</button>
-        <button className="category-btn" onClick={() => handleGroupClick("Sportcsarnokok")}>Sportcsarnokok</button>
-        <button className="category-btn" onClick={() => handleGroupClick("Parkolók")}>Parkolók</button>
-        <button className="category-btn" onClick={() => handleGroupClick("Tanulmányi épületek")}>Tanulmányi Épületek</button>
-        <button className="category-btn">Rendezvények</button>
+        {[
+          "Kollégiumok",
+          "Sportcsarnokok",
+          "Parkolók",
+          "Tanulmányi épületek",
+          "Rendezvények",
+        ].map((g) => (
+          <button
+            key={g}
+            className={`category-btn ${selectedGroup === g ? "active" : ""}`}
+            onClick={() => handleGroupClick(g)}
+            aria-pressed={selectedGroup === g}
+          >
+            {g}
+          </button>
+        ))}
       </div>
     </div>
     </div>

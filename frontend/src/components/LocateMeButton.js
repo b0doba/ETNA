@@ -76,7 +76,7 @@ const LocateMeButton = ({ map }) => {
       title={loading ? "Pozíció lekérése..." : "Jelenlegi hely megjelenítése"}
       aria-label="Jelenlegi hely megjelenítése"
     >
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
         <path d="M11 3v2a7 7 0 0 0-6 6H3v2h2a7 7 0 0 0 6 6v2h2v-2a7 7 0 0 0 6-6h2v-2h-2a7 7 0 0 0-6-6V3h-2Zm1 4a5 5 0 1 1 0 10A5 5 0 0 1 12 7Z" />
         <circle cx="12" cy="12" r="1.7" />
       </svg>

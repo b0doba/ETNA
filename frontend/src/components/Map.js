@@ -4,6 +4,7 @@ import SearchPanel from "./SearchPanel.js";
 import loadGoogleMapsScript from "./loadGoogleMap";
 import NavigationComponent from "./NavigationComponent";
 import LocateMeButton from "./LocateMeButton";
+import TipChip from "./TipChip";
 //import Map3DControls from "./Map3DControls";
 
 
@@ -32,6 +33,8 @@ const MapComponent = () => {
   const lastRouteNamesRef = useRef({ start: "", end: "" });
   const routeEndpointsRef = useRef({ start: null, end: null });
   const isStairsNode = (n) => ((n?.type || n?.nodeType || "").toLowerCase() === "stairs");
+
+  const [showTip, setShowTip] = useState(true);
 
   // const focusRunIdRef = useRef(0);
   // const nextRunId = () => (++focusRunIdRef.current);
@@ -426,6 +429,10 @@ const MapComponent = () => {
       clearRoomLabels();
     };
   }, [isBuildingView, currentFloor, floorGroup, selectedGroup, mapReady, currentMapId]);
+
+   useEffect(() => {
+      if (isBuildingView) setShowTip(false);
+    }, [isBuildingView]);
 
   const collapseStairRuns = (nodes = []) => {
     const out = [];
@@ -1383,7 +1390,7 @@ const MapComponent = () => {
     coordinates.forEach(([lng, lat]) => bounds.extend(new window.google.maps.LatLng(lat, lng)));
   };
 
-  const handleRouteSearch = async (startName, endName) => { //működik
+  const handleRouteSearch = async (startName, endName) => {    
     try {
       const [startRes, endRes] = await Promise.all([
         fetch(`http://localhost:5000/api/search?q=${startName}`),
@@ -1549,6 +1556,15 @@ const MapComponent = () => {
       {loading && <p>Betöltés...</p>}
       {error && <p style={{ color: "blue" }}>Hiba történt: {error}</p>}
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
+      <TipChip
+        show={!isBuildingView && showTip}
+        onClose={() => setShowTip(false)}
+        text="Tipp: Kattints egy épületre, és megnyílik a belső nézet (szintek, termek)."
+        autoHideMs={20000}
+        rememberDismiss={false}
+        storageKey="hideBuildingTip"
+        position="bottom-center" // választható: bottom-right/top-left/top-right
+      />
       <LocateMeButton map={map.current} />
       {isBuildingView && availableFloorNumbers.length > 0 && (
         <div className="slider-container"

@@ -109,9 +109,10 @@ const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingV
         // 3) teljes táv a választott élek mentén
         let totalMeters = 0;
         for (let i = 0; i < shortestPath.length - 1; i++) {
-          const k = makeEdgeKey(shortestPath[i], shortestPath[i + 1]);
-          const e = edgeMap.get(k);
-          if (e?.distance) totalMeters += Number(e.distance) || 0;
+          const fromId = shortestPath[i];
+          const toId   = shortestPath[i + 1];
+          const w = (graph[fromId]?.find(n => Number(n.node) === Number(toId))?.weight) ?? 0;
+          totalMeters += Number(w) || 0;
         }
 
         // 4) meta és visszahívás a Map felé
@@ -279,9 +280,10 @@ function buildGraph(nodes, edges) {
   nodes.forEach((node) => { graph[node.id] = []; });
 
   edges.forEach((edge) => {
-    const { fromNodeId, toNodeId, distance } = edge;
+    const { fromNodeId, toNodeId } = edge;
+    const distance = Number(edge.distance);
     if (!graph[fromNodeId] || !graph[toNodeId]) return;
-    if (distance > 0) {
+    if (Number.isFinite(distance) && distance > 0) {
       if (!graph[fromNodeId].some(e => e.node === toNodeId)) {
         graph[fromNodeId].push({ node: toNodeId, weight: distance });
       }
