@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import "../App.css";
 
+
 const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect,
   onCancelRoute, hudHidden, delHighlight, routeUI, onStepClick, onCloseSteps, routeDisabled = false, isBuildingView,
   currentFloor, selectedGroup, onClearGroup, onToggleHUD, selectedBuilding}) => {
@@ -32,7 +33,7 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect,
     suggestionRefs.current = [];
 
     try {
-      const resp = await fetch(`http://localhost:5000/api/search?q=${encodeURIComponent(query)}`);
+      const resp = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
       const data = await resp.json();
 
       const results = [

@@ -24,8 +24,8 @@ const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingV
 
       try {
         const [nodesRes, edgesRes] = await Promise.all([
-          fetch("http://localhost:5000/api/nodes"),
-          fetch("http://localhost:5000/api/edges"),
+          fetch("/api/nodes"),
+          fetch("/api/edges"),
         ]);
 
         const nodes = await nodesRes.json();

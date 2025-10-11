@@ -10,11 +10,12 @@
     "web-vitals": "^4.2.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "cross-env PORT=3000 HOST=0.0.0.0 DANGEROUSLY_DISABLE_HOST_CHECK=true WDS_SOCKET_PORT=0 react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
+  "proxy": "http://localhost:5000",
   "eslintConfig": {
     "extends": [
       "react-app",
@@ -33,13 +34,13 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:5000",
   "overrides": {
     "nth-check": "2.1.1",
     "postcss": "8.4.47",
     "resolve-url-loade": "5.0.0"
-},
+  },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "eslint-config-react-app": "^7.0.1"
   }
 }

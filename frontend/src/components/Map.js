@@ -189,12 +189,12 @@ const MapComponent = () => {
         // await loadGoogleMapsScript();
 
         const [buildings,rooms, floors] = await Promise.all([
-          fetchGeoJSON("http://localhost:5000/api/buildings"),
-          fetchGeoJSON("http://localhost:5000/api/rooms"),
-          fetchGeoJSON("http://localhost:5000/api/floors")
+          fetchGeoJSON("/api/buildings"),
+          fetchGeoJSON("/api/rooms"),
+          fetchGeoJSON("/api/floors")
         ]);
 
-        const nodesResponse = await fetch("http://localhost:5000/api/nodes");
+        const nodesResponse = await fetch("/api/nodes");
 
         const getFloorNumberById = (floorId) => {
           const floor = floors.features.find(f => f.properties?.id === floorId);
@@ -1055,7 +1055,7 @@ const MapComponent = () => {
     if (!query.trim()) return;
   
     try {
-      const response = await fetch(`http://localhost:5000/api/search?q=${query}`);
+      const response = await fetch(`/api/search?q=${query}`);
       const data = await response.json();
   
       console.log("Keresési eredmények:", data);
@@ -1393,8 +1393,8 @@ const MapComponent = () => {
   const handleRouteSearch = async (startName, endName) => {    
     try {
       const [startRes, endRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/search?q=${startName}`),
-        fetch(`http://localhost:5000/api/search?q=${endName}`)
+        fetch(`/api/search?q=${startName}`),
+        fetch(`/api/search?q=${endName}`)
       ]);
       
       const dataStart = await startRes.json();
