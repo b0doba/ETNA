@@ -48,179 +48,6 @@ html, body {
   overflow: hidden;
 }
 
-.search-panel {
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  background: white;
-  border-top-right-radius: 8px;
-  border-bottom-right-radius: 8px;
-  padding: 30px;
-  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.25);
-  z-index: 1000;
-  width: 300px;   
-  max-width: 100vw;
-  height: auto;
-  transition: width .35s ease, opacity .35s ease, transform .35s ease;
-}
-
-.search-panel.hidden {
-  width: 0;                     /* szépen összecsukódik */
-  padding-left: 0;
-  padding-right: 0;
-  opacity: 0;
-  transform: translateX(-10px); /* kis csúszás balra */
-  overflow: hidden;             /* tartalom ne lógjon ki */
-  pointer-events: none;         /* ne lehessen kattintani */
-}
-
-.search-bar {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  width: 100%;
-  margin-left: 0px;
-}
-
-.search-bar .autocomplete {
-  flex: 1 1 auto;     /* <-- ez engedi, hogy széles legyen */
-  min-width: 0;       /* flex overflow bug ellen */
-}
-
-.search-bar input {
-  flex-grow: 1;
-  padding: 14px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  box-sizing: border-box;
-  height: 20px;
-}
-
-.search-bar input:focus{
-  border: 2px solid #01acc8;
-  outline: none;
-}
-
-.search-btn {
-  background: #01acc8;
-  color: white;
-  border: none;
-  padding: 12px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.12);
-}
-
-.route-btn{
-  background: #01acc8;
-  color: white;
-  border: none;
-  padding: 12px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.12);
-}
-
-.search-btn img,
-.route-btn img {
-  width: 18px;
-  height: 18px;
-  filter: invert(100%);
-}
-
-.search-btn:hover,
-.route-btn:hover {
-  background: #007e91;
-}
-
-.route-inputs {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 90%;
-  margin-left: 10px;
-}
-
-.route-inputs input {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  width: 80%;
-  height: 20px;
-}
-
-.route-input:focus{
-  border: 2px solid #01acc8;
-  outline: none;
-}
-
-.route-inputs .route-btn {
-  margin-top: 5px;
-  background: #01acc8;
-  position: center;
-  color: white;
-  width: 100%;
-  font-size: 0.9rem;
-}
-
-.route-inputs .route-btn:hover {
-  background: #007e91;
-}
-
-.description {
-  font-size: 1rem;
-  text-align: left;
-  width: 100%;
-  text-align: center;
-}
-
-/* Kategória gombok stílusa */
-.category-buttons {
-  position: relative;
-  left: 1vh;
-  display: flex;
-  gap: 10px;
-  z-index: 1000;
-}
-
-.category-btn {
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
-  color: #01acc8;
-  border: none;
-  padding: 10px 18px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-  max-height: 35px;
-  width: auto;
-  white-space: nowrap;
-  transition-duration: 300ms;
-}
-
-.category-btn:hover {
-  background: #f0f0f0;
-}
-
-.category-btn.active {
-  background: #01acc8;
-  color: #fff;                 
-}
-
-.category-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.35);
-}
-
 .top-ui-wrapper {
   position: absolute;
   top: 1vh;
@@ -231,19 +58,16 @@ html, body {
   gap: 10px;
 }
 
-.map-3d-btn {
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
-  color: #01acc8;
-  border: none;
-  padding: 10px 18px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-  transition: 1s ease;
+.top-ui-wrapper, .search-shell, .category-buttons-wrapper {
+  pointer-events: none;
 }
 
+.top-ui-wrapper .search-panel,
+.top-ui-wrapper .toggle-hud-btn,
+.top-ui-wrapper .category-buttons,
+.top-ui-wrapper .category-btn {
+  pointer-events: auto;
+}
 
 .custom-info-window {
   font-family: Arial, sans-serif;
@@ -274,7 +98,6 @@ html, body {
   display: none !important; /* 🔹 Elrejti az "x" gombot */
 }
 
-/* A csúszka konténere */
 .slider-container {
   position: absolute;
   right: 20px;
@@ -291,7 +114,6 @@ html, body {
   align-items: center;
 }
 
-/* A csúszka címke (szint száma) */
 .slider-label {
   text-align: center;
   font-size: 16px;
@@ -314,12 +136,10 @@ html, body {
   direction: rtl; /* Megfordítja a csúszka működését */
 }
 
-/* Ha a csúszkát használják */
 .slider:hover {
   opacity: 1;
 }
 
-/* A csúszka fogantyúja */
 .slider::-webkit-slider-thumb {
   appearance: none;
   width: 16px;
@@ -333,99 +153,7 @@ html, body {
   background: #007e91;
 }
 
-.autocomplete {
-  position: relative;
-  width: 100%;
-  flex: 1 1 auto;
-}
-
-.autocomplete input {
-  width: 100%;
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  box-sizing: border-box;
-}
-
-/* <<< TÖRÖLD a korábbi duplikált/autocomplete-list verziókat és tartsd ezt >>> */
-.autocomplete-list {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;                 /* ettől lesz pontosan input-szélességű */
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  max-height: 220px;
-  overflow: auto;
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  z-index: 2000;
-  box-sizing: border-box;   /* keret beleszámít */
-}
-.autocomplete-list li {
-  padding: 8px 10px;
-  cursor: pointer;
-  font-size: 14px;
-}
-.autocomplete-list li.selected,
-.autocomplete-list li:hover {
-  background: #f3f4f6;
-}
-
-.search-shell {
-  display: flex;
-  align-items: stretch;    /* ⬅️ ettől nyúlik a toggle a panel magasságához */
-  position: relative;
-  z-index: 1500;           /* maradjon a térkép fölött */
-}
-
-
-.toggle-hud-btn {
-  align-self: stretch;
-  height: auto;            
-  width: 26px;
-  min-width: 26px;
-  border: none;
-  border-top-left-radius: 8px;
-  border-bottom-left-radius: 8px;
-  background: #f8fbff;
-  color: #01acc8;
-  cursor: pointer;
-  font-size: 0.8rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
-  z-index: 1001;
-  transition: all 0.35s ease;
-}
-
-.toggle-hud-btn:hover{
-  background-color: rgb(234, 244, 255);
-}
-
-.hidden {
-  transform: translateX(-400px);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.toggle-hud-btn.compact {
-  height: 30px;               
-  align-self: flex-start;      
-  border-radius: 8px;
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.15);
-  z-index: 1500;
-}
-
-.autocomplete-list li.selected {
-  background-color: #ddd;
-  font-weight: bold;
-}
-
-.map-3d-controls {
+/* .map-3d-controls {
   position: absolute;
   top: 1vh;
   right: 10px;
@@ -450,7 +178,7 @@ html, body {
 
 .map-3d-btn:hover {
   background: #f0f0f0;
-}
+} */
 
 .info-btn{
     position: absolute;
@@ -484,300 +212,6 @@ html, body {
   filter: invert(64%) sepia(91%) saturate(662%) hue-rotate(150deg) brightness(80%) contrast(92%);
 }
 
-/* listaelemek középre igazítva */
-.route-step {
-  display: flex;
-  align-items: center;         /* ⬅️ fontos a vertikális középhez */
-  gap: 12px;
-  padding: 8px 1px;
-  border-radius: 10px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: background .15s ease, border-color .15s ease, max-height .2s ease, padding .2s ease, opacity .2s ease;
-}
-.route-step + .route-step { margin-top: 6px; }
-
-/* „rádió” jel + ikon teljesen középen */
-.route-step-bullet {
-  width: 15px;
-  height: 15px;
-  flex: 0 0 15px;
-  border-radius: 9999px;
-  border: 2px solid #cbd5e1;
-  background: #fff;
-  display: flex;               /* ⬅️ középre igazítás */
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
-  transition: transform .2s ease, border-color .2s ease, background .2s ease;
-}
-.route-step-bullet.active {
-  border-color: #01acc8;
-  background: #e7fbff;
-}
-
-.route-step-icon {
-  width: 14px;
-  height: 14px;
-  margin: 0;                   /* ⬅️ vedd le a margin-top-ot */
-  display: block;
-  opacity: .9;
-}
-
-/* szövegek */
-.route-step-texts { display: flex; flex-direction: column; gap: 2px; }
-.route-step-title  { font-weight: 600; font-size: .9rem; color: #0f172a; }
-
-/* állapotok */
-.route-step.active {
-  border: 1px solid #01acc8;
-  background: #eefbfe;
-  max-height: 200px;
-  padding: 8px 12px;
-  opacity: 1;
-}
-
-.route-step.compact {
-  max-height: 38px;
-  padding: 6px 10px;
-  background: #fff;
-  border-color: transparent;
-  opacity: .9;
-}
-
-/* a compact elemeknél a subtitle alapból ne látszódjon */
-.route-step.compact .route-step-subtitle { display: none; }
-
-/* opcionális hover */
-.route-step:hover { background: #f7fbff; }
-
-/* Leíró szöveg (Írd le hova szeretnél menni!) */
-.description{
-  margin: 12px 0 6px;
-  font-size: 0.95rem;
-  color: #0f172a;
-}
-
-/* Doboz + belépő animáció maradhat */
-.route-steps{
-  position: relative;             /* kell az abszolút SVG-hez */
-  width: 94%;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  padding: 12px;
-  box-shadow: 0 2px 8px rgba(15,23,42,.05);
-
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: max-height .35s ease, opacity .25s ease, transform .35s ease;
-}
-.route-steps.is-entering{
-  max-height: 1000px;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Fejléc */
-.route-steps-header{ padding-bottom: 6px; border-bottom: 1px solid #f1f5f9; }
-.route-steps-title{ display:flex; align-items:center; gap:10px; }
-.route-steps-icon{ width:22px; height:22px; flex:0 0 22px; opacity:.9; }
-.route-steps-texts{ display:flex; flex-direction:column; gap:2px; }
-.route-steps-mainline{ font-weight:700; font-size:1rem; color:#0f172a; line-height:1.1; }
-.route-steps-subline{ font-size:.9rem; color:#475569; }
-
-/* lista konténer */
-.route-steps-list{
-  position: relative;
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;                 /* nincs behúzás */
-  display: flex;
-  flex-direction: column;
-}
-
-/* sín – vékony csík a bulletek alatt */
-.route-rail{
-  position: absolute;
-  left: 15px;                 /* a bullet közepe: bullet(16px) + border(2x2) / 2 → kb. 20px */
-  top: 10px;                  /* az első bullet fele fölött induljon */
-  bottom: 10px;               /* utolsó bullet fele alatt érjen véget */
-  width: 7px;                 /* vékony csík */
-  background: linear-gradient(to bottom, #a6e8f2 0%, #01acc8 100%);
-  border-radius: 2px;
-  pointer-events: none;
-  z-index: 0;                 /* a pöttyök mögött legyen */
-}
-
-/* elemek – nincs háttér, nincs extra border alapból */
-.route-step{
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 8px;           /* az aktívnál is marad ez → nincs “ugrálás” */
-  border: none;
-  background: transparent;
-  box-sizing: border-box;
-}
-.route-step + .route-step{ margin-top: 6px; }
-
-.route-step:hover{ background: transparent; }
-
-/* aktív elem – keret, de ugyanaz a padding (nincs behúzás) */
-.route-step.active{
-  border: 1px solid #01acc8;
-  background: #eafcff;
-}
-
-/* bullet – a sín fölé kerül */
-.route-step-bullet{
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  border-radius: 50%;
-  border: 2px solid #cbd5e1;
-  background: #fff;           /* hogy a sín ne „üssön át” a körön */
-  position: relative;
-  z-index: 1;                 /* sín fölé */
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
-}
-
-/* aktív bullet – telire töltve */
-.route-step-bullet.active{
-  background: #01acc8;
-  border-color: #01acc8;
-  box-shadow: 0 0 0 3px #e7fbff;   /* kis belső “ring”, opcionális */
-}
-
-/* címek – köztes pontok enyhén kisebbek; első/utolsó erősebb */
-.route-step-title{ font-weight: 600; font-size: .94rem; color: #0f172a; }
-.route-step.first  .route-step-title{ font-weight: 700; }
-.route-step.last   .route-step-title{ font-weight: 700; color: #01acc8; }
-
-/* csak az aktívnál látszik a kiegészítő sor */
-.route-step-subtitle{
-  margin-top: 3px;
-  color: #475569;
-  font-size: .85rem;
-}
-.route-step:not(.active) .route-step-subtitle{ display: none; }
-
-.route-step-hint{
-  margin-top: 4px;
-  font-size: .82rem;
-  color: #01acc8;       
-  line-height: 1.25;
-}
-
-.route-btn.is-disabled,
-.route-btn:disabled {
-  opacity: .5;
-  cursor: not-allowed;
-}
-.route-input:disabled {
-  background: #f3f4f6;
-  cursor: not-allowed;
-}
-
-/* Status chip */
-/* alap */
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #f8fbff;                 /* majdnem fehér-kék */
-  color: #01acc8;                     /* kékes szöveg */
-  margin-bottom: 8px;
-  font-weight: bold;
-}
-
-.status-chip--indoor {
-  /* belső nézet: picit erősebb háttér, hogy elváljon */
-  background: #eef6ff;
-  border-color: #cfe4ff;
-  color: #01acc8;
-}
-
-.status-chip--outdoor {
-  /* külső nézet: még fehéresebb */
-  background: #ffffff;
-  border-color: #e5f0ff;
-  color: #01acc8;
-}
-
-.status-dot {
-  width: 8px; height: 8px; border-radius: 999px;
-  background: currentColor;           /* szín öröklődik */
-  box-shadow: 0 0 0 2px rgba(14,165,233,0.15);
-}
-
-.status-text { font-size: 12px; }
-.status-clear {
-  background: transparent; border: 0; cursor: pointer;
-  font-size: 16px; line-height: 1; color: inherit; opacity: .7;
-}
-.status-clear:hover { opacity: 1; }
-
-/* Empty state */
-.empty-state {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 60;
-
-  padding: 12px;
-  border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.08);
-}
-
-.empty-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-.empty-tip {
-  font-size: 12px;
-  color: #6b7280;
-}
-/* Route button: secondary állapot */
-.route-btn.secondary {
-  opacity: 0.65;
-}
-.route-btn.secondary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-/* Autocomplete lista (ha még nincs) */
-.autocomplete-list {
-  position: absolute;
-  z-index: 50;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  margin-top: 4px;
-  max-height: 220px;
-  overflow: auto;
-  width: 100%;
-}
-.autocomplete-list li {
-  padding: 8px 10px;
-  cursor: pointer;
-  font-size: 14px;
-}
-.autocomplete-list li.selected,
-.autocomplete-list li:hover {
-  background: #f3f4f6;
-}
-
-
 .locate-me-btn {
   position: absolute;
   left: 10px;
@@ -804,7 +238,6 @@ html, body {
 .locate-me-btn:disabled { opacity: .6; cursor: not-allowed; }
 .locate-me-btn svg { fill: #111; }
 
-/* Alap konténer */
 .tip-chip {
   position: absolute;
   max-width: min(92vw, 520px);
@@ -824,7 +257,7 @@ html, body {
 .tip-chip.bottom-center {
   left: 50%;
   bottom: 20px;
-  transform: translateX(-50%);   /* középre igazítás */
+  transform: translateX(-50%); 
 }
 
 .tip-icon { line-height: 1; font-size: 18px; margin-top: 2px; }
@@ -843,9 +276,86 @@ html, body {
 }
 .tip-close:hover { background: rgba(0,0,0,0.06); }
 
+@media (min-width: 641px) and (max-width: 1165px){
+  .info-btn{
+    top: 60px;
+  }
+}
+
 @media (max-width: 640px) {
-  .tip-chip { left: 10px; right: 10px; bottom: 14px; padding: 10px; }
+  .tip-chip {
+    display: flex;
+    justify-content: center;
+    justify-items: center;
+  }
   .tip-text { font-size: 13px; }
+
+  .info-btn {display: none;}
+
+  .locate-me-btn {
+    position: absolute;
+    left: 10px;
+    bottom: 20px;
+  }
+
+  .slider-container {
+    position: fixed;                          /* lebegjen a térkép felett */
+    left: 50%;
+    bottom: max(18px, env(safe-area-inset-bottom));
+    top: auto;
+    right: auto;
+    transform: translateX(-50%);              /* középre */
+    width: 50%;
+    padding: 8px 10px;
+    border-radius: 999px;                      /* kapszula */
+    box-shadow: 0 6px 18px rgba(0,0,0,.18);
+    background-color: rgba(255,255,255,.95);
+    z-index: 1600;
+
+    display: flex;
+    align-items: center;
+  }
+
+  .slider-label {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #01acc8;
+    white-space: nowrap;
+  }
+
+  .slider {
+    /* vízszintesre állítjuk és kompaktabbra */
+    appearance: none;
+    writing-mode: horizontal-tb !important;    /* felülírja a vertikálist */
+    direction: ltr !important;
+    width: 100%;
+    height: 10px;                              /* teljes input magasság */
+    background: transparent;                   /* tracket külön stílózzuk */
+    outline: none;
+    opacity: 1;
+    border-radius: 999px;
+  }
+
+  /* WebKit (Chrome, Safari) vízszintes track */
+  .slider::-webkit-slider-runnable-track {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 999px;
+  }
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #01acc8;
+    cursor: pointer;
+    margin-top: -6px; /* (thumbHeight - trackHeight)/-2 = (18-6)/-2 */
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+  .slider::-webkit-slider-thumb:hover { background: #007e91; }
+
+  
 }
 
 

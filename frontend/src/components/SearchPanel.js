@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import "../App.css";
-
+import "../SearchPanel.css";
 
 const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect,
   onCancelRoute, hudHidden, delHighlight, routeUI, onStepClick, onCloseSteps, routeDisabled = false, isBuildingView,
@@ -16,6 +16,11 @@ const SearchPanel = ({ onSearch, onRouteSearch, onGroupSelect,
   const searchIcon = "/assets/icons/arrow.svg";
   const routeIcon =  "/assets/icons/pitch.svg";
   const canRoute = !!startPoint.trim() && !!destination.trim();
+
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches
+  );
+  const [routeStarted, setRouteStarted] = useState(false);
 
   const [stepsOpen, setStepsOpen] = useState(false);
 
@@ -103,6 +108,20 @@ useEffect(() => {
   }
 }, [routeUI?.steps?.length]);
 
+useEffect(() => {
+  const mq = window.matchMedia("(max-width: 640px)");
+  const onChange = () => setIsMobile(mq.matches);
+  mq.addEventListener?.("change", onChange);
+  // régebbi böngésző fallback
+  mq.addListener?.(onChange);
+  return () => {
+    mq.removeEventListener?.("change", onChange);
+    mq.removeListener?.(onChange);
+  };
+}, []);
+
+const isMobileRouting = isMobile && routeStarted;
+
   const handleSearch = () => {
     const q = searchQuery.trim();
     if (!q) return;
@@ -158,7 +177,7 @@ useEffect(() => {
 
   return (
     <>
-     <div className="search-shell">
+     <div className={`search-shell ${isMobileRouting ? "mobile-routing" : ""}`}>
       <button
         className={`toggle-hud-btn ${hudHidden ? "compact" : ""}`}
         onClick={onToggleHUD}          
@@ -338,7 +357,12 @@ useEffect(() => {
             </div>
           <button
             className={`route-btn search-route-btn ${!canRoute ? "secondary" : ""}`}
-            onClick={() => { onCancelRoute(); handleRouteSearch(); }}
+            onClick={() => {
+              if (!canRoute) return;
+              if (isMobile) setRouteStarted(true);
+              onCancelRoute();
+              handleRouteSearch();
+            }}
             disabled={!canRoute}
             title={!canRoute ? "Add meg a kezdőpontot és az úticélt" : "Útvonaltervezés indítása"}
           >
@@ -350,6 +374,7 @@ useEffect(() => {
             onClick={() => {
               setStepsOpen(false);
               setShowRouteInputs(false);
+              setRouteStarted(false);
               onCancelRoute?.();
             }}
           >
@@ -361,6 +386,19 @@ useEffect(() => {
       {routeUI && routeUI.steps && routeUI.steps.length > 0 && (
           <div className={`route-steps ${stepsOpen ? "is-entering" : ""}`}>
             <div className="route-steps-header">
+              {isMobile && routeStarted && (
+                <button
+                  className="route-back-btn"
+                  onClick={() => {
+                    setStepsOpen(false);
+                    setShowRouteInputs(false);
+                    setRouteStarted(false);
+                    onCancelRoute?.();
+                  }}
+                >
+                  x
+                </button>
+              )}
               <div className="route-steps-title">
                 <img className="route-steps-icon" src="/assets/icons/pitch.svg" alt="" />
                 <div className="route-steps-texts">
@@ -416,7 +454,8 @@ useEffect(() => {
           "Sportcsarnokok",
           "Parkolók",
           "Tanulmányi épületek",
-          "Rendezvények",
+          "Étel",
+          "Mosdók"
         ].map((g) => (
           <button
             key={g}
