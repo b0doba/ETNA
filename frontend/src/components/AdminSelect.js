@@ -12,13 +12,22 @@ const BUILDING_GROUPS = [
 const EDGE_TYPES = ["hallway", "stairs", "path", "outdoor"];
 const NODE_TYPES = ["exit", "hallway", "stairs", "terem", "outdoor"];
 
-const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleSave, saveUpdatedFeature, showEdgeForm, nodes }) => {
+const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleSave, saveUpdatedFeature, showEdgeForm, nodes, onCancelCreation,
+  onDeleteSelected, creationMode }) => {
   
   if (!selectedData) return null;
 
   return (
     <div className="info-box">
+      <button className="info-box-close"
+        onClick={() => { onCancelCreation && onCancelCreation(); }}
+        title="Mégse / Bezárás"
+      >
+        ✕
+      </button>
       {!selectedData.id && (
+        <>
+        {creationMode === "polygon" && (
         <div className="info-fields">
           <label>Kategória:</label>
           <select onChange={(e) => setSelectedData({ ...selectedData, category: e.target.value })}>
@@ -26,10 +35,10 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
             <option value="building">Épület</option>
             <option value="floor">Emelet</option>
             <option value="room">Terem</option>
-            <option value="node">Node</option>
-            <option value="edge">Edge</option>
           </select>
         </div>
+        )}
+        </>
       )}
 
       {selectedData.category === "building" && (
@@ -161,7 +170,18 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
           <label>Típus:</label>
           <select
             value={selectedData.type || ""}
-            onChange={(e) => setSelectedData({ ...selectedData, type: e.target.value })}
+            onChange={(e) => {
+              const t = e.target.value;
+              const defaults = {
+                stairs: "stairs-up.svg",
+                exit: "entrance-alt1.svg",
+              };
+              setSelectedData(prev => ({
+                ...prev,
+                type: t,
+                iconUrl: defaults[t] ?? prev.iconUrl ?? "",
+              }));
+            }}
           >
             <option value="">Válassz típust</option>
             {NODE_TYPES.map(t => (
@@ -273,8 +293,27 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
         </div>
       )}
       <div className="info-box-buttons">
-        <button className="info-box-save" onClick={selectedData.id ? saveUpdatedFeature : handleSave} disabled={!selectedData.category}>Mentés</button>
-        <button className="info-box-btn" onClick={() => {setSelectedData(null); } }>Bezárás</button>
+        <button
+          className="info-box-save"
+          onClick={selectedData.id ? saveUpdatedFeature : handleSave}
+          disabled={!selectedData.category}
+        >
+          Mentés
+        </button>
+        <button
+          className="info-box-delete"
+          onClick={() => {
+            if (selectedData?.id) {
+              onDeleteSelected && onDeleteSelected();
+            } else {
+              if (window.confirm("Mégse? A nem mentett alakzat törlődik.")) {
+                onCancelCreation && onCancelCreation();
+              }
+            }
+          }}
+        >
+          Törlés
+        </button>
       </div>
     </div>
   );

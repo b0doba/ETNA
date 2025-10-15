@@ -129,6 +129,8 @@ const AdminMap = () => {
   const newPolygon = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const newMarker = useRef(null);
+  const [creationMode, setCreationMode] = useState(null);
 
   const refreshMap = () => {
     //console.log(" Térkép frissítése...");
@@ -267,6 +269,14 @@ const AdminMap = () => {
           },
         });
 
+        window.google.maps.event.addListener(drawingManager.current, "drawingmode_changed", () => {
+          const mode = drawingManager.current.getDrawingMode();
+          if (mode === window.google.maps.drawing.OverlayType.MARKER) setCreationMode("marker");
+          else if (mode === window.google.maps.drawing.OverlayType.POLYGON) setCreationMode("polygon");
+          else setCreationMode(null);
+        });
+
+
         drawingManager.current.setMap(map.current);
 
         let activeEdges = [];
@@ -323,6 +333,10 @@ const AdminMap = () => {
               drawingManager.current.setDrawingMode(null); // Automatikusan kikapcsolja a rajzolási módot
 
               if (event.type === "marker") {
+
+                newMarker.current = event.overlay;
+
+                setCreationMode("marker"); 
                 const position = event.overlay.getPosition();
                 const coordinates = [[position.lng(), position.lat()]];
             
@@ -332,13 +346,15 @@ const AdminMap = () => {
                   category: "node",
                   coordinates,
                 });
-            
+
+                               // jelezzük, hogy point alapú létrehozás            
                 return; // ne fusson tovább polygon esetén
               }
 
               if(event.type === "polygon"){
 
                 newPolygon.current = event.overlay;
+                setCreationMode("polygon");    
                 newPolygon.current.setEditable(true); // Az alakzat szerkeszthető lesz
               
               
@@ -365,6 +381,10 @@ const AdminMap = () => {
                   coordinates: coordinates, // A megfelelő koordináták átadása
                 });
               }
+
+              
+
+
             });
 
             activeEdges.forEach(edge => edge.setMap(null));
@@ -580,6 +600,72 @@ const AdminMap = () => {
 
     initMap();
   }, [mapRefreshTrigger, filter]);
+
+  const deleteSelectedOnServer = async () => {
+    const sel = selectedFeature.current || selectedData;
+    if (!sel?.id || !sel?.category) {
+      alert("Nincs kijelölt törölhető objektum.");
+      return;
+    }
+    if (!window.confirm("Biztosan törlöd a kiválasztott objektumot?")) return;
+
+    try {
+      const cat = sel.category;
+      const id = sel.id;
+      let res;
+
+      // Épület – a szervered szerint: DELETE /deleteBuilding/:id
+      if (cat === "building") {
+        res = await fetch(`${API_BASE_URL}/deleteBuilding/${id}`, { method: "DELETE" });
+      }
+      // Emelet és terem – feltételezve hasonló mintázatot:
+      else if (cat === "floor") {
+        res = await fetch(`${API_BASE_URL}/deleteFloor/${id}`, { method: "DELETE" });
+      } else if (cat === "room") {
+        res = await fetch(`${API_BASE_URL}/deleteRoom/${id}`, { method: "DELETE" });
+      }
+      // Node és edge – REST mint korábban
+      else if (cat === "node") {
+        res = await fetch(`${API_BASE_URL}/nodes/${id}`, { method: "DELETE" });
+      } else if (cat === "edge") {
+        res = await fetch(`${API_BASE_URL}/edges/${id}`, { method: "DELETE" });
+      } else {
+        alert("Ismeretlen kategória, nem tudom törölni.");
+        return;
+      }
+
+      if (!res?.ok) throw new Error("Szerver hiba a törlésnél.");
+
+      alert("Törölve.");
+      if (sel.polygon?.setMap) sel.polygon.setMap(null);
+      if (sel.polyline?.setMap) sel.polyline.setMap(null);
+      if (sel.marker?.setMap) sel.marker.setMap(null);
+      setSelectedData(null);
+      selectedFeature.current = null;
+      refreshMap();
+    } catch (e) {
+      console.error(e);
+      alert("Nem sikerült törölni.");
+    }
+  };
+
+
+  const cancelCreation = () => {
+    try {
+      if (newPolygon.current) {
+        newPolygon.current.setMap(null);
+        newPolygon.current = null;
+      }
+      if (newMarker.current) {
+        newMarker.current.setMap(null);
+        newMarker.current = null;
+      }
+    } finally {
+      setSelectedData(null);
+      setCreationMode(null);
+      refreshMap();
+    }
+  };
 
   // Csak egymást követő duplikált/0-hosszú pontok törlése (edge szerkesztéshez)
   const simplifyPolylineForEdit = (points, epsMeters = 0.01) => {
@@ -1016,6 +1102,9 @@ const AdminMap = () => {
         showEdgeForm={showEdgeForm}
         setShowEdgeForm={setShowEdgeForm}
         nodes={nodes}
+        onCancelCreation={cancelCreation}
+        onDeleteSelected={deleteSelectedOnServer}
+        creationMode={creationMode}
       />
       <AdminObjectFilter
         buildings={buildings}
@@ -1030,6 +1119,7 @@ const AdminMap = () => {
       <button
         className="edge-btn"
         onClick={() => {
+          setCreationMode("edge");  
           setShowEdgeForm(true); 
           setSelectedData({
             category: "edge",
