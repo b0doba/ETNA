@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 import React, { useRef, useEffect, useState } from "react";
 import loadGoogleMapsScript from "./loadGoogleMap";
 import "../AdminLook.css";

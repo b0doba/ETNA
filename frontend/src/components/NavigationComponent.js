@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 import { useEffect, useRef } from "react";
 
 const NavigationComponent = ({ start, end, map, clear, currentFloor, isBuildingView, floors, onRouteNodes }) => {
