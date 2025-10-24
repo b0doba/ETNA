@@ -1,42 +1,129 @@
+/* ===== InfoPage.css ===== */
+
 .info-page {
-  padding: 40px 60px;
-  max-width: 100%;
-  margin: 0 auto;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  line-height: 1.8;
-  color: #1e293b;
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;           /* itt gördül */
+  -webkit-overflow-scrolling: touch;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 10px;
+  width: 100%;
 }
 
+/* --- Header --- */
 .info-header {
+  width: 100%;
+  max-width: 1000px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 32px;
+  justify-content: space-between;
+  background-color: #01acc8;
+  color: white;
+  padding: 16px 24px;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  margin-bottom: 25px; /* kicsi tér a tartalom előtt */
 }
 
 .info-header h1 {
-  font-size: 2rem;
-  font-weight: bold;
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
 }
 
 .back-button {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  background: #e2e8f0;
+  background-color: white;
+  color: #01acc8;
   border: none;
-  padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 15px;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .back-button:hover {
-  background: #cbd5e1;
+  background-color: #e7fbff;
+  transform: scale(1.05);
 }
 
-.info-content p {
-  margin-bottom: 20px;
-  text-align: justify;
+/* --- Content --- */
+.info-content {
+  width: 100%;
+  max-width: 900px;
+  background-color: white;
+  border-radius: 16px;
+  padding: 30px 40px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  text-align: left;
 }
+
+.info-content h2 {
+  color: #01acc8;
+  border-bottom: 2px solid #01acc8;
+  padding-bottom: 5px;
+  margin-top: 25px;
+  margin-bottom: 15px;
+}
+
+.info-content h3 {
+  color: #01acc8;
+  margin-top: 20px;
+}
+
+.info-content p,
+.info-content li {
+  line-height: 1.6;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.info-content ol,
+.info-content ul {
+  margin-left: 20px;
+}
+
+.image-placeholder {
+  background-color: #f5fafd;
+  border: 2px dashed #01acc8;
+  color: #01acc8;
+  border-radius: 16px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  padding: 60px 0;
+  margin: 25px 0;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.image-placeholder:hover {
+  background-color: #01acc8;
+  color: white;
+  transform: scale(1.02);
+}
+
+/* --- Scrollbar Styling --- */
+.info-page::-webkit-scrollbar {
+  width: 10px;
+}
+
+.info-page::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.info-page::-webkit-scrollbar-thumb {
+  background: #01acc8;
+  border-radius: 10px;
+}
+
+.info-page::-webkit-scrollbar-thumb:hover {
+  background: #0199b3;
+}
+
