@@ -187,14 +187,19 @@ async function deleteNode(req, res) {
       return res.status(400).json({ error: "Node ID megadása szükséges!" });
     }
 
-    // 🔥 Először töröljük az éleket, amelyek erre a Node-ra hivatkoznak
-    await prisma.edge.deleteMany({
+    const edgeCount = await prisma.edge.count({
       where: {
         OR: [{ fromNodeId: Number(id) }, { toNodeId: Number(id) }],
       },
     });
 
-    // 🔥 Majd töröljük magát a csomópontot
+    if (edgeCount > 0) {
+      return res.status(409).json({
+        error: "A csomópont nem törölhető, amíg élek hivatkoznak rá.",
+        details: { edgeCount },
+      });
+    }
+
     const deletedNode = await prisma.node.delete({
       where: { id: Number(id) },
     });

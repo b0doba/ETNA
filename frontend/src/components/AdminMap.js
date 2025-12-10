@@ -131,20 +131,82 @@ const AdminMap = () => {
   const [error, setError] = useState(null);
   const newMarker = useRef(null);
   const [creationMode, setCreationMode] = useState(null);
+  const nodeMarkersRef = useRef(new Map());    // nodeId -> google.maps.Marker
+  const edgePolylinesRef = useRef(new Map());  // edgeId -> { polyline, fromNodeId, toNodeId }
+  const nodeToEdgesRef = useRef(new Map());    // nodeId -> Set(edgeId)
 
-  const refreshMap = () => {
-    //console.log(" Térkép frissítése...");
-    setMapRefreshTrigger((prev) => prev + 1);
+  // végtelen kör frissítés elkerülésére
+  const isSyncingRef = useRef(false);
+
+  const resnapAllEdges = () => {
+    edgePolylinesRef.current.forEach(({ polyline, fromNodeId, toNodeId }) => {
+      const path = polyline.getPath();
+      if (path.getLength() === 0) return;
+      const fromPos = getNodeLatLng(fromNodeId);
+      const toPos   = getNodeLatLng(toNodeId);
+      if (fromPos) path.setAt(0, fromPos);
+      if (toPos)   path.setAt(path.getLength() - 1, toPos);
+    });
   };
 
-  const applyFilter = (filterData) => {
-    //console.log(" Szűrés alkalmazása:", filterData);
-    setFilter(filterData);
-  };
-  
-  const resetFilter = () => {
-  setFilter({ category: "outdoor" }); // ⬅️ reset is kültérre áll vissza
+  const getNodeLatLng = (nodeId) => {
+  const m = nodeMarkersRef.current.get(nodeId);
+  if (m) return m.getPosition();
+  // fallback: ha a marker még nincs meg, próbáljuk a nodes tömbből
+  const n = (nodes || []).find(nn => nn.id === nodeId) || (nodesRaw || []).find(nn => nn.id === nodeId);
+  if (!n) return null;
+  const coords = Array.isArray(n.coordinates) ? n.coordinates : JSON.parse(n.coordinates || "[]");
+  if (!coords?.[0]) return null;
+  const [lng, lat] = coords[0];
+  return new window.google.maps.LatLng(lat, lng);
 };
+
+  const addEdgeToIndex = (edgeId, fromNodeId, toNodeId) => {
+    if (!nodeToEdgesRef.current.has(fromNodeId)) nodeToEdgesRef.current.set(fromNodeId, new Set());
+    if (!nodeToEdgesRef.current.has(toNodeId))   nodeToEdgesRef.current.set(toNodeId, new Set());
+    nodeToEdgesRef.current.get(fromNodeId).add(edgeId);
+    nodeToEdgesRef.current.get(toNodeId).add(edgeId);
+  };
+
+  const updateEdgesForNode = (nodeId, latLng) => {
+    const ids = nodeToEdgesRef.current.get(nodeId);
+    if (!ids) return;
+    ids.forEach(edgeId => {
+      const rec = edgePolylinesRef.current.get(edgeId);
+      if (!rec) return;
+      const path = rec.polyline.getPath();
+      if (rec.fromNodeId === nodeId) {
+        path.setAt(0, latLng);
+      }
+      if (rec.toNodeId === nodeId) {
+        path.setAt(path.getLength() - 1, latLng);
+      }
+    });
+  };
+
+  const moveNodeToLatLng = (nodeId, latLng) => {
+    const m = nodeMarkersRef.current.get(nodeId);
+    if (!m) return;
+    m.setPosition(latLng);
+  };
+
+  const latLngEq = (a, b, eps = 1e-12) =>
+    Math.abs(a.lat() - b.lat()) < eps && Math.abs(a.lng() - b.lng()) < eps;
+
+
+    const refreshMap = () => {
+      //console.log(" Térkép frissítése...");
+      setMapRefreshTrigger((prev) => prev + 1);
+    };
+
+    const applyFilter = (filterData) => {
+      //console.log(" Szűrés alkalmazása:", filterData);
+      setFilter(filterData);
+    };
+    
+    const resetFilter = () => {
+    setFilter({ category: "outdoor" }); // ⬅️ reset is kültérre áll vissza
+  };
 
   const makeFloorIdToNumber = (floorsArr) => {
     const map = new Map();
@@ -501,10 +563,59 @@ const AdminMap = () => {
               polyline,
             };
 
+          
+
+
             setSelectedData(edgeData);
             selectedFeature.current = edgeData;
             console.log("Kiválasztott edge:", edgeData);
           });
+
+          edgePolylinesRef.current.set(edge.id, { polyline, fromNodeId: edge.fromNodeId, toNodeId: edge.toNodeId });
+          addEdgeToIndex(edge.id, edge.fromNodeId, edge.toNodeId);
+
+          (() => {
+            const fromM = nodeMarkersRef.current.get(edge.fromNodeId);
+            const toM   = nodeMarkersRef.current.get(edge.toNodeId);
+            if (!fromM || !toM) return; // lehet, hogy a node-ok később jönnek – ez nem baj
+            const path = polyline.getPath();
+            if (path.getLength() === 0) return;
+            const first = path.getAt(0);
+            const last  = path.getAt(path.getLength() - 1);
+
+            const fromPos = fromM.getPosition();
+            const toPos   = toM.getPosition();
+
+            if (!latLngEq(first, fromPos)) path.setAt(0, fromPos);
+            if (!latLngEq(last, toPos))    path.setAt(path.getLength() - 1, toPos);
+          })();
+
+          polyline.getPath().addListener("set_at", (idx) => {
+          const path = polyline.getPath();
+          const last = path.getLength() - 1;
+          if (idx !== 0 && idx !== last) return; // csak endpoint érdekes
+
+          if (isSyncingRef.current) return;
+          isSyncingRef.current = true;
+          try {
+            const rec = edgePolylinesRef.current.get(edge.id);
+            if (!rec) return;
+            const snapPos =
+              idx === 0 ? getNodeLatLng(rec.fromNodeId) : getNodeLatLng(rec.toNodeId);
+            if (snapPos) path.setAt(idx, snapPos); // visszapattintjuk
+          } finally {
+            isSyncingRef.current = false;
+          }
+        });
+
+        // Ne lehessen új pontot beszúrni az elejére vagy végére
+        polyline.getPath().addListener("insert_at", (idx) => {
+          const path = polyline.getPath();
+          const last = path.getLength() - 1;
+          if (idx === 0 || idx === last) {
+            path.removeAt(idx);
+          }
+        });
         });
                 
         //Nodok megjelenítése és kiemelése
@@ -551,6 +662,20 @@ const AdminMap = () => {
             },
           });
 
+          // indexeld a markert a node azonosítóhoz:
+          nodeMarkersRef.current.set(id, marker);
+
+          // node húzás -> minden kapcsolt edge endpoint frissítése
+          marker.addListener("drag", () => {
+            if (isSyncingRef.current) return;
+            isSyncingRef.current = true;
+            try {
+              updateEdgesForNode(id, marker.getPosition());
+            } finally {
+              isSyncingRef.current = false;
+            }
+          });
+
           marker.addListener("click", () => {
 
             activeEdges.forEach((e) => e.setMap(null));
@@ -586,6 +711,8 @@ const AdminMap = () => {
             console.log("Kiválasztott node:", nodeData);
           });
         });
+
+        resnapAllEdges();
 
         addGeoJSONToMap(buildingsGeo, "blue", "building");
         addGeoJSONToMap(floorsGeo, "green", "floor");
@@ -950,6 +1077,15 @@ const AdminMap = () => {
         console.warn("Az edge-nek nincs polyline referenciája!");
         return;
       }
+
+      const rec = edgePolylinesRef.current.get(selectedFeature.current.id);
+        if (rec) {
+          const path = rec.polyline.getPath();
+          const fromPos = getNodeLatLng(rec.fromNodeId);
+          const toPos   = getNodeLatLng(rec.toNodeId);
+          if (fromPos) path.setAt(0, fromPos);
+          if (toPos)   path.setAt(path.getLength() - 1, toPos);
+        }
   
       const waypoints = selectedFeature.current.polyline
         .getPath()

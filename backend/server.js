@@ -22,5 +22,5 @@ app.use("/api", graphRoutes);
 // Szerver indítása
 const PORT = 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Szerver fut a http://localhost:${PORT} címen`);
+  console.log(`Szerver fut a http://localhost:${PORT} címen`);
 });
