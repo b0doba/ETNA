@@ -13,7 +13,7 @@ const EDGE_TYPES = ["hallway", "stairs", "path", "outdoor"];
 const NODE_TYPES = ["exit", "hallway", "stairs", "terem", "outdoor"];
 
 const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleSave, saveUpdatedFeature, showEdgeForm, nodes, onCancelCreation,
-  onDeleteSelected, creationMode }) => {
+  onDeleteSelected, creationMode, onSyncFloorsToBuilding }) => {
   
   if (!selectedData) return null;
 
@@ -87,7 +87,19 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
               />
             </>
           )}
-        </div>
+          {selectedData.category === "building" && selectedData.id && (
+            <button
+              className="info-box-copy"
+              style={{ marginTop: "8px" }}
+              onClick={async () => {
+                if (!window.confirm("Az épület alakját rá akarod húzni az ÖSSZES szintjére?")) return;
+                await onSyncFloorsToBuilding(selectedData.id);
+              }}
+            >
+              Szintek igazítása az épülethez
+            </button>
+          )}
+        </div>        
       )}
 
       {selectedData.category === "floor" && (

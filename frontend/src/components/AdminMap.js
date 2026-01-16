@@ -112,7 +112,6 @@ const orthogonalizeAxisAligned = (points, opts = {}) => {
   return cleaned;
 };
 
-
 const AdminMap = () => {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -149,6 +148,78 @@ const AdminMap = () => {
       if (toPos)   path.setAt(path.getLength() - 1, toPos);
     });
   };
+
+  const syncFloorsToBuilding = async (buildingId) => {
+  try {
+    // 1️⃣ épület polygon koordinátái
+    const building = selectedFeature.current;
+    if (!building?.polygon) {
+      alert("Nincs kiválasztott épület polygon!");
+      return;
+    }
+
+    const buildingCoords = building.polygon
+      .getPath()
+      .getArray()
+      .map(ll => [ll.lng(), ll.lat()]);
+
+    // biztos zárás
+    if (
+      buildingCoords.length > 1 &&
+      (buildingCoords[0][0] !== buildingCoords.at(-1)[0] ||
+        buildingCoords[0][1] !== buildingCoords.at(-1)[1])
+    ) {
+      buildingCoords.push([...buildingCoords[0]]);
+    }
+
+    // 2️⃣ az épülethez tartozó szintek
+    const floorsToUpdate = floors.filter(f => f.buildingId === buildingId);
+
+    if (floorsToUpdate.length === 0) {
+      alert("Ehhez az épülethez nincs egyetlen szint sem.");
+      return;
+    }
+
+    // 3️⃣ floor frissítések
+    for (const floor of floorsToUpdate) {
+      const payload = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [buildingCoords],
+            },
+            properties: {
+              id: floor.id,
+              number: floor.number,
+              height: floor.height ?? 0,
+            },
+          },
+        ],
+      };
+
+      const res = await fetch(`${API_BASE_URL}/updateFloors`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Hiba a(z) ${floor.number}. szint mentésekor`);
+      }
+    }
+
+    alert(`✅ ${floorsToUpdate.length} szint sikeresen igazítva az épülethez`);
+    refreshMap();
+
+  } catch (err) {
+    console.error(err);
+    alert("❌ Nem sikerült a szintek igazítása");
+  }
+};
+
 
   const getNodeLatLng = (nodeId) => {
   const m = nodeMarkersRef.current.get(nodeId);
@@ -1179,6 +1250,7 @@ const AdminMap = () => {
         onCancelCreation={cancelCreation}
         onDeleteSelected={deleteSelectedOnServer}
         creationMode={creationMode}
+        onSyncFloorsToBuilding={syncFloorsToBuilding} 
       />
       <AdminObjectFilter
         buildings={buildings}

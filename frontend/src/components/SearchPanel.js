@@ -453,9 +453,7 @@ const isMobileRouting = isMobile && routeStarted;
           "Kollégiumok",
           "Sportcsarnokok",
           "Parkolók",
-          "Tanulmányi épületek",
-          "Étel",
-          "Mosdók"
+          "Tanulmányi épületek"
         ].map((g) => (
           <button
             key={g}

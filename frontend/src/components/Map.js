@@ -288,89 +288,95 @@ const MapComponent = () => {
 
       nodesData.forEach((node) => {
 
-        const nodeFloorNumber = getFloorNumberById(node.floorId);
+      const nodeFloorNumber = getFloorNumberById(node.floorId);
 
-        if (
-          (isBuildingView && nodeFloorNumber !== currentFloor) ||
-          (!isBuildingView && node.floorId !== null)
-        ) {
-          return;
-        }
+      if (
+        (isBuildingView && nodeFloorNumber !== currentFloor) ||
+        (!isBuildingView && node.floorId !== null)
+      ) {
+        return;
+      }
 
-        if (node.coordinates && node.iconUrl) {
-          const [lng, lat] = JSON.parse(node.coordinates)[0];
-      
-          const iconDiv = document.createElement("div");
-          iconDiv.style.position = "absolute";
-          
-          const img = document.createElement("img");
-          img.src = `/assets/icons/${node.iconUrl}`; 
-          img.style.width = "30px";
-          img.style.height = "30px";
-          iconDiv.appendChild(img);
-      
-          const overlay = new window.google.maps.OverlayView();
-          let currentZoom = map.current.getZoom();
+      if (node.coordinates && node.iconUrl) {
+        const [lng, lat] = JSON.parse(node.coordinates)[0];
 
-          overlay.onAdd = function () {
-            const panes = this.getPanes();
-            panes.overlayImage.appendChild(iconDiv);
+        const iconDiv = document.createElement("div");
+        iconDiv.style.position = "absolute";
 
-            map.current.addListener("zoom_changed", () => {
-              currentZoom = map.current.getZoom();
-              overlay.draw(); 
-            });
-          };
-          overlay.draw = function () {
-            const projection = this.getProjection();
-            if (!projection) return; 
-            const position = projection.fromLatLngToDivPixel(new window.google.maps.LatLng(lat, lng));
-          
-            if (currentZoom >= 17) {
-              iconDiv.style.display = "block";
-          
-              // 🔧 Méret zoom szerint
-              const baseSize = 40;
-              const maxZoom = 21;
-              const minZoom = 17;
-              const clampedZoom = Math.min(Math.max(currentZoom, minZoom), maxZoom);
-          
-              // Lineáris skálázás (közeli zoomnál kisebb, távolinál nagyobb)
-              const scaleFactor = 1 + ((maxZoom - clampedZoom) * 0.3); // pl. zoom 17 → x2.2, zoom 21 → x1
-              const size = baseSize / scaleFactor;
-          
-              img.style.width = `${size}px`;
-              img.style.height = `${size}px`;
+        const img = document.createElement("img");
+        img.src = `/assets/icons/${node.iconUrl}`;
+        iconDiv.appendChild(img);
 
-              let opacity = 1;
-              if (currentZoom <= 16) {
-                opacity = 0;
-              } else if (currentZoom >= 21) {
-                opacity = 1;
-              } else {
-                opacity = (currentZoom - 18) / (21 - 18); // Lineáris skála
-              }
+        const overlay = new window.google.maps.OverlayView();
+        let currentZoom = map.current.getZoom();
 
-              iconDiv.style.opacity = opacity.toFixed(2);
-          
-              iconDiv.style.left = `${position.x}px`;
-              iconDiv.style.top = `${position.y}px`;
-              iconDiv.style.transform = "translate(-50%, -50%)"; // középre igazítás
+        overlay.onAdd = function () {
+          const panes = this.getPanes();
+          panes.overlayImage.appendChild(iconDiv);
+
+          map.current.addListener("zoom_changed", () => {
+            currentZoom = map.current.getZoom();
+            overlay.draw();
+          });
+        };
+
+        overlay.draw = function () {
+          const projection = this.getProjection();
+          if (!projection) return;
+
+          const position = projection.fromLatLngToDivPixel(
+            new window.google.maps.LatLng(lat, lng)
+          );
+
+          if (currentZoom >= 15) {
+            iconDiv.style.display = "block";
+
+            // ---- MÉRET ----
+            const baseSize = 25;
+            const maxZoom = 21;
+            const minZoom = 15;
+
+            const clampedZoom = Math.min(Math.max(currentZoom, minZoom), maxZoom);
+            const scaleFactor = 1 + ((maxZoom - clampedZoom) * 0.3);
+            const size = baseSize / scaleFactor;
+
+            img.style.width = `${size}px`;
+            img.style.height = `${size}px`;
+
+            // ---- OPACITY ----
+            let opacity;
+            if (currentZoom <= 15) {
+              opacity = 0;
+            } else if (currentZoom >= 19) {
+              opacity = 1;
             } else {
-              iconDiv.style.display = "none";
+              // 15 → 0   | 19 → 1
+              opacity = (currentZoom - 15) / (19 - 15);
             }
-          };
-          overlay.onRemove = function () {
-            if (iconDiv.parentNode) {
-              iconDiv.parentNode.removeChild(iconDiv);
-            }
-          };
-      
-          overlay.setMap(map.current);
 
-          overlaysRef.current.push(overlay);
-        }
-      });
+            iconDiv.style.opacity = opacity.toFixed(2);
+
+            // ---- POZÍCIÓ ----
+            iconDiv.style.left = `${position.x}px`;
+            iconDiv.style.top = `${position.y}px`;
+            iconDiv.style.transform = "translate(-50%, -50%)";
+
+          } else {
+            iconDiv.style.display = "none";
+          }
+        };
+
+        overlay.onRemove = function () {
+          if (iconDiv.parentNode) {
+            iconDiv.parentNode.removeChild(iconDiv);
+          }
+        };
+
+    overlay.setMap(map.current);
+    overlaysRef.current.push(overlay);
+  }
+});
+
 
         console.log("Térkép sikeresen inicializálva!");
         setLoading(false);
@@ -690,8 +696,24 @@ const MapComponent = () => {
       const isRouteEnd = routeHighlightedBuildings.end && featureName === routeHighlightedBuildings.end.name;
       const isGroupHighlighted = selectedGroup && clean(featureGroup) === clean(selectedGroup);
   
-      let fillColor = "gray";
-      let strokeWeight = 0.1;
+      let fillColor = "black";
+      let strokeWeight = 0.5;
+
+      if (clean(featureGroup) === "Parkolók") {
+        fillColor = "lightblue";
+      }
+
+      if (clean(featureGroup) === "Kollégiumok") {
+        fillColor = "green";
+      }
+
+      if (clean(featureGroup) === "Sportcsarnokok") {
+        fillColor = "red";
+      }
+
+      if (clean(featureGroup) === "Tanulmányi épületek") {
+        fillColor = "orange";
+      }
   
       if (isSearchHighlighted || isGroupHighlighted) {
         fillColor = "blue";
@@ -944,7 +966,16 @@ const MapComponent = () => {
         const z = map.current.getZoom() ?? 18;
 
         // Zoom 15–22 között 12–36 px-ig skálázunk
-        const sizePx = scaleBetween(z, 15, 22, 12, 36);
+        const featureGroup = (feature.getProperty("group") || "").replace(/"/g, "").trim();
+
+        // Alap méret
+        let sizePx = scaleBetween(z, 15, 22, 12, 36);
+
+        // 🅿️ Parkolók: kisebb cím
+        if (featureGroup === "Parkolók") {
+          sizePx *= 0.65; // ~35%-kal kisebb
+        }
+
         labelDiv.style.fontSize = `${sizePx.toFixed(1)}px`;
 
         // Opcionális: kicsit halványabb távolról, erősebb közelről
