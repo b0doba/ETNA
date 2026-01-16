@@ -382,6 +382,64 @@ async function getRooms (req, res) {
       res.status(500).json({ error: "Nem sikerült törölni a szobát." });
     }
   }
-  
 
-  module.exports = { getRooms, updateRooms, createRooms, deleteRoom};
+  async function copyRoom(req, res) {
+  try {
+    const roomId = parseInt(req.params.id, 10);
+
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      include: { floor: true },
+    });
+
+    if (!room) {
+      return res.status(404).json({ error: "A terem nem található" });
+    }
+
+    const newRoomName = `${room.name}_masolt`;
+
+    // 🔁 terem másolása
+    const newRoom = await prisma.room.create({
+      data: {
+        name: newRoomName,
+        type: room.type,
+        floorId: room.floorId,
+        coordinates: room.coordinates, // 👈 alakzat 1:1 másolva
+      },
+    });
+
+    // 📍 node másolása (új név!)
+    const originalNode = await prisma.node.findFirst({
+      where: {
+        name: `${room.name}_node`,
+        floorId: room.floorId,
+        type: "terem",
+      },
+    });
+
+    if (originalNode) {
+      await prisma.node.create({
+        data: {
+          name: `${newRoomName}_node`,
+          type: "terem",
+          floorId: originalNode.floorId,
+          buildingId: originalNode.buildingId,
+          coordinates: originalNode.coordinates,
+          iconUrl: originalNode.iconUrl || "",
+        },
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Terem sikeresen lemásolva",
+      room: newRoom,
+    });
+  } catch (error) {
+    console.error("🚨 Hiba a terem másolásakor:", error);
+    res.status(500).json({ error: "Nem sikerült a terem másolása" });
+  }
+}
+
+
+module.exports = { getRooms, updateRooms, createRooms, deleteRoom, copyRoom};

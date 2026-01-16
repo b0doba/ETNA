@@ -41,6 +41,7 @@ const dedupeNearPoints = (pts, eps = 1e-9) => {
   return out;
 };
 
+
 // --- ORTOGONALIZÁLÁS: szigorúan 0°/90°-os élek, globális sarok-korrekcióval ---
 /**
  * orthogonalizeAxisAligned(points, opts)
@@ -390,6 +391,29 @@ const AdminMap = () => {
 
             polygon.setMap(map.current);
 
+            polygon.addListener("rightclick", (e) => {
+              console.log("Right click event:", e);
+
+              // ha nem törésponton kattintottál
+              if (typeof e.vertex !== "number") return;
+
+              const path = polygon.getPath();
+
+              if (path.getLength() <= 3) {
+                alert("Egy polygonhoz minimum 3 sarok szükséges!");
+                return;
+              }
+
+              const ok = window.confirm("Töréspont törlése?");
+              if (!ok) return;
+
+              path.removeAt(e.vertex);
+            });
+            
+
+
+
+
             window.google.maps.event.addListener(drawingManager.current, "overlaycomplete", (event) => {
               console.log("Alakzat létrehozva!");
               drawingManager.current.setDrawingMode(null); // Automatikusan kikapcsolja a rajzolási módot
@@ -562,14 +586,37 @@ const AdminMap = () => {
               category: "edge",
               polyline,
             };
-
           
-
-
             setSelectedData(edgeData);
             selectedFeature.current = edgeData;
             console.log("Kiválasztott edge:", edgeData);
           });
+
+          polyline.addListener("rightclick", (e) => {
+            console.log("Polyline right click:", e);
+
+            if (typeof e.vertex !== "number") return;
+
+            const path = polyline.getPath();
+            const len = path.getLength();
+
+            // minimum 2 pont kell
+            if (len <= 2) {
+              alert("Egy vonalhoz minimum 2 pont szükséges!");
+              return;
+            }
+
+            // ❌ ne engedd az eleje/vége törlését
+            if (e.vertex === 0 || e.vertex === len - 1) {
+              alert("A kezdő és végpont nem törölhető!");
+              return;
+            }
+
+            if (!window.confirm("Töréspont törlése?")) return;
+
+            path.removeAt(e.vertex);
+          });
+
 
           edgePolylinesRef.current.set(edge.id, { polyline, fromNodeId: edge.fromNodeId, toNodeId: edge.toNodeId });
           addEdgeToIndex(edge.id, edge.fromNodeId, edge.toNodeId);
@@ -817,117 +864,6 @@ const AdminMap = () => {
     return out;
   };
 
-//   const simplifyPolygon = (points, minDistance = 0.0000001) => {
-//     if (points.length < 4) return points; // Ha túl kevés pont van, nem módosítunk
-
-//     const sqMinDistance = minDistance * minDistance;
-
-//     // Euklideszi távolság négyzetes formában
-//     const getSqDist = (p1, p2) => {
-//         const dx = p1[0] - p2[0];
-//         const dy = p1[1] - p2[1];
-//         return dx * dx + dy * dy;
-//     };
-
-//     let filteredPoints = [];
-
-//     for (let i = 0; i < points.length; i++) {
-//         let isDuplicate = false;
-
-//         for (let j = 0; j < filteredPoints.length; j++) {
-//             if (getSqDist(points[i], filteredPoints[j]) < sqMinDistance) {
-//                 isDuplicate = true;
-//                 break;
-//             }
-//         }
-
-//         if (!isDuplicate) {
-//             filteredPoints.push(points[i]);
-//         }
-//     }
-
-//     // Egyenes vonalon lévő felesleges pontok eltávolítása
-//     const removeCollinearPoints = (points) => {
-//         if (points.length < 4) return points;
-
-//         const isCollinear = (p1, p2, p3) => {
-//             return Math.abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) < 1e-10;
-//         };
-
-//         let result = [points[0]]; // Az első pontot mindig megtartjuk
-
-//         for (let i = 1; i < points.length - 1; i++) {
-//             if (!isCollinear(points[i - 1], points[i], points[i + 1])) {
-//                 result.push(points[i]); // Csak akkor tartjuk meg, ha nem egy egyenes része
-//             }
-//         }
-
-//         result.push(points[points.length - 1]); // Az utolsó pontot mindig megtartjuk
-//         return result;
-//     };
-
-//     // Egyenes vonalakat egyszerűsítjük
-//     filteredPoints = removeCollinearPoints(filteredPoints);
-
-//     // Ha az utolsó pont nem egyezik meg az elsővel, biztosítjuk a zártságot
-//     if (filteredPoints.length > 2 &&
-//         (filteredPoints[0][0] !== filteredPoints[filteredPoints.length - 1][0] ||
-//          filteredPoints[0][1] !== filteredPoints[filteredPoints.length - 1][1])) {
-//         filteredPoints.push([...filteredPoints[0]]);
-//     }
-
-//     return filteredPoints;
-// };
-
-// const simplifyPolyline = (points, minDistance = 0.0000001) => {
-//   if (points.length < 3) return points;
-
-//   const sqMinDistance = minDistance * minDistance;
-
-//   const getSqDist = (p1, p2) => {
-//       const dx = p1[0] - p2[0];
-//       const dy = p1[1] - p2[1];
-//       return dx * dx + dy * dy;
-//   };
-
-//   // Távolság alapú szűrés
-//   let filteredPoints = [];
-//   for (let i = 0; i < points.length; i++) {
-//       let isDuplicate = false;
-
-//       for (let j = 0; j < filteredPoints.length; j++) {
-//           if (getSqDist(points[i], filteredPoints[j]) < sqMinDistance) {
-//               isDuplicate = true;
-//               break;
-//           }
-//       }
-
-//       if (!isDuplicate) {
-//           filteredPoints.push(points[i]);
-//       }
-//   }
-
-//   // Kollineáris pontok kiszűrése
-//   const removeCollinearPoints = (points) => {
-//       if (points.length < 3) return points;
-
-//       const isCollinear = (p1, p2, p3) => {
-//           return Math.abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) < 1e-8;
-//       };
-
-//       let result = [points[0]];
-//       for (let i = 1; i < points.length - 1; i++) {
-//           if (!isCollinear(points[i - 1], points[i], points[i + 1])) {
-//               result.push(points[i]);
-//           }
-//       }
-//       result.push(points[points.length - 1]);
-//       return result;
-//   };
-
-//   return removeCollinearPoints(filteredPoints);
-// };
-
   const handleSave = async () => {
     if (!selectedData || !selectedData.category) {
       alert("Válassz kategóriát és adj meg minden szükséges adatot!");
@@ -1131,6 +1067,8 @@ const AdminMap = () => {
       .getPath()
       .getArray()
       .map((ll) => [ll.lng(), ll.lat()]);
+
+    //coordinates = dedupePolygonPoints(coordinates, 1);
 
     // 0/90 fokosra húzás, csak duplikált pontok kiszedése
     const ortho = orthogonalizeAxisAligned(coordinates, {

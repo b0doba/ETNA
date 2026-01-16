@@ -314,6 +314,30 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
         >
           Törlés
         </button>
+        {selectedData.category === "room" && selectedData.id && (
+          <button
+            className="info-box-copy"
+            title="Terem másolása"
+            onClick={async () => {
+              if (!window.confirm("Biztosan lemásolod ezt a termet?")) return;
+              try {
+                const res = await fetch(
+                  `http://localhost:5000/api/rooms/${selectedData.id}/copy`,
+                  { method: "POST" }
+                );
+
+                if (!res.ok) throw new Error("Másolás sikertelen");
+
+                alert("✅ Terem lemásolva!");
+              } catch (e) {
+                console.error(e);
+                alert("❌ Nem sikerült a terem másolása");
+              }
+            }}
+          >
+            Másolás
+          </button>
+        )}
       </div>
     </div>
   );

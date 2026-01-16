@@ -7,7 +7,7 @@ const AdminDeleteItem = ({ refreshMap, setShowEdgeForm, setSelectedData }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [category, setCategory] = useState("");
   const [items, setItems] = useState([]);
-  const tarshIcon = "assets/icons/waste-basket.svg";
+  const tarshIcon = "/assets/icons/waste-basket.svg";
   const [selectedItem, setSelectedItem] = useState("");
 
   useEffect(() => {
