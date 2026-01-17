@@ -169,6 +169,20 @@ const AdminSelect = ({ selectedData, setSelectedData, buildings, floors, handleS
             value={selectedData.name || ""}
             onChange={(e) => setSelectedData({ ...selectedData, name: e.target.value })}
           />
+          <label>Kategória:</label>
+          <select
+            value={selectedData.roomCategory || "room"}
+            onChange={(e) =>
+              setSelectedData({
+                ...selectedData,
+                roomCategory: e.target.value,
+              })
+            }
+          >
+            <option value="room">Terem (járható)</option>
+            <option value="void">Void (nem járható)</option>
+            <option value="blocked">Blocked (lezárt)</option>
+          </select>
         </div>
       )}
       {selectedData.category === "node" && (

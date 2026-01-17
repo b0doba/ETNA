@@ -34,6 +34,7 @@ model Room {
   floorId     Int
   name        String
   type        String
+  category    String @default("room")
   coordinates Json?    
   floor       Floor    @relation(fields: [floorId], references: [id])
 }

@@ -556,7 +556,12 @@ const AdminMap = () => {
               
               const { id, category, name, shortName, group, number, height, type, gather } = feature.properties;
               
-              let selectedObject = { id, category, polygon};  
+              let selectedObject = {
+                id,
+                category: "room",                     
+                roomCategory: category || "room",
+                polygon,
+              }; 
               
               if (category === "building") {
                 selectedObject = {
@@ -577,6 +582,7 @@ const AdminMap = () => {
                   ...selectedObject,
                   name: name || "",
                   type: type || "",
+                  roomCategory: feature.properties.category || "room",
                 };
               }
               
@@ -1042,6 +1048,7 @@ const AdminMap = () => {
         floorId: selectedData.floorId,
         name: selectedData.name || "",
         type: selectedData.type && selectedData.type.trim() !== "" ? selectedData.type : "terem",
+        category: selectedData.roomCategory || "room",
         coordinates: selectedData.coordinates || [],
       };
     } else if (selectedData.category === "node") {
@@ -1248,6 +1255,7 @@ const AdminMap = () => {
             number: updatedProperties.number || 0,
             height: updatedProperties.height || 0,
             type: updatedProperties.type || "",
+            category: updatedProperties.roomCategory || "room",
           },
         },
       ],

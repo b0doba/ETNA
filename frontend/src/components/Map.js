@@ -271,8 +271,14 @@ const MapComponent = () => {
           data.addListener("mouseout", () => infoWindow.close());
 
           data.addListener("click", (event) => {
-            const category = event.feature.getProperty("category");
-            if (category === "building") {
+            const objectType =
+            event.feature.getProperty("objectType") ||
+            (event.feature.getProperty("floor") != null
+              ? "room"
+              : event.feature.getProperty("number") != null
+              ? "floor"
+              : "building");
+            if (objectType === "building") {
               const buildingName = event.feature.getProperty("name");
               const gatherName = event.feature.getProperty("gather");
               if (gatherName) focusOnBuilding(buildingName, gatherName);
@@ -661,14 +667,22 @@ const MapComponent = () => {
   };
 
   const getFeatureStyle = (feature) => {
-    const category = feature.getProperty("category");
+    const objectType =
+      feature.getProperty("objectType") ||
+      (feature.getProperty("floor") != null
+        ? "room"
+        : feature.getProperty("number") != null
+        ? "floor"
+        : "building");
+
+    const roomCategory = feature.getProperty("category");
     const featureName = feature.getProperty("name");
     const buildingName = feature.getProperty("building");
     const floorNumber = feature.getProperty("number");
     const roomFloor = feature.getProperty("floor");
     const featureGroup = feature.getProperty("group");
   
-    if (category === "room" && !isBuildingView) {
+    if (objectType === "room" && !isBuildingView) {
       return { visible: false };
     }
 
@@ -680,7 +694,13 @@ const MapComponent = () => {
       routeHighlightedRooms.end && featureName === routeHighlightedRooms.end.name.trim();
 
     // ⬅️ Csak belső nézetben engedjük megjelenni a kiemelt szobát
-    if (isBuildingView && (isSearchHighlighted || isRouteStart || isRouteEnd) && roomFloor === currentFloor) {
+    if (
+      isBuildingView &&
+      objectType === "room" &&
+      feature.getProperty("category") === "room" &&
+      (isSearchHighlighted || isRouteStart || isRouteEnd) &&
+      roomFloor === currentFloor
+    ) {
       return {
         fillColor: "blue",
         strokeColor: "black",
@@ -689,7 +709,7 @@ const MapComponent = () => {
       };
     }
   
-    if (isBuildingView && (category === "floor" || category === "room")) {
+    if (isBuildingView && (objectType === "floor" || objectType === "room")) {
       const relatedBuilding = buildingsRef.current?.features?.find(
         (b) => b.properties.name.trim() === buildingName?.trim()
       );
@@ -698,7 +718,7 @@ const MapComponent = () => {
   
       if (buildingGather !== currentGather) return { visible: false };
   
-      if (category === "floor" && floorNumber === currentFloor) {
+      if (objectType === "floor" && floorNumber === currentFloor) {
         return {
           fillColor: "gray",
           strokeColor: "lightgray",
@@ -707,20 +727,46 @@ const MapComponent = () => {
         };
       }
   
-      if (category === "room" && roomFloor === currentFloor) {
+      if (objectType === "room" && roomFloor === currentFloor) {
+
+        const roomName = (featureName || "").toLowerCase();
+
+        // 🎨 ALAPSZÍNEK
+        let fillColor = "orange";
+        let fillOpacity = 0.5;
+        let strokeColor = "black";
+
+         if (roomName.includes("mosdó")) {
+            fillColor = "lightgreen";
+          }
+
+          if (roomName.includes("lépcső")) {
+            fillColor = "pink";
+          }
+
+        if (roomCategory === "void") {
+            fillColor = "black";
+          }
+
+          if (roomCategory === "blocked") {
+            fillColor = "red";
+          }
+
+
         return {
-          fillColor: "orange",
-          strokeColor: "black",
-          fillOpacity: 0.6,
+          fillColor,
+          fillOpacity,
+          strokeColor,
           strokeWeight: 0.7,
           visible: true,
         };
       }
+
   
       return { visible: false };
     }
   
-    if (!isBuildingView && category === "building") {
+    if (!isBuildingView && objectType === "building") {
       const clean = str => (str || "").replace(/"/g, "").trim();
       const isSearchHighlighted =
         searchHighlightedBuilding &&
@@ -1043,7 +1089,8 @@ const MapComponent = () => {
     const clean = (s) => (s || "").replace(/"/g, "").trim();
 
     map.current.data.forEach((feature) => {
-      if (feature.getProperty("category") !== "room") return;
+      const roomCat = feature.getProperty("category");
+      if (roomCat === "void" || roomCat === "blocked") return;
 
       const roomFloor = feature.getProperty("floor");
       if (roomFloor !== currentFloor) return;

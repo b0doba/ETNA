@@ -87,7 +87,7 @@ async function getRooms (req, res) {
             floorId: room.floor.id,
             type: room.type,
             building: room.floor.building.name,
-            category: "room",
+            category: room.category || "room",
           },
         })),
       };
@@ -152,18 +152,20 @@ async function getRooms (req, res) {
           update: {
             name: room.properties.name || roomName,
             type: room.properties.type || roomType,
+            category: room.properties.category || existingRoom.category || "room",
             coordinates: JSON.stringify(cleanedCoordinates),
           },
           create: {
             id: room.properties.id,
             name: roomName,
             type: roomType,
+            category: room.properties.category || "room",
             coordinates: JSON.stringify(cleanedCoordinates),
             floorId: existingRoom.floorId
           },
         });
 
-        if (center) {
+        if (center && existingRoom.category === "room") {
           const nodeName = `${roomName}_node`;
   
           const existingNode = await prisma.node.findFirst({
@@ -265,10 +267,14 @@ async function getRooms (req, res) {
 
   async function createRooms (req, res) {
     try {
-      const { floorId, name, type, coordinates } = req.body;
+      const { floorId, name, type, category, coordinates } = req.body;
   
       if (!floorId || !name || !type) {
         return res.status(400).json({ error: "Minden mező kitöltése kötelező!" });
+      }
+
+      if ((category || "room") === "room" && !name) {
+        return res.status(400).json({ error: "Terem esetén a név kötelező!" });
       }
   
       const newRoom = await prisma.room.create({
@@ -276,6 +282,7 @@ async function getRooms (req, res) {
           floorId,
           name,
           type,
+          category: category || "room", 
           coordinates: coordinates ? JSON.stringify(coordinates) : [],
         },
         include: {
@@ -314,7 +321,7 @@ async function getRooms (req, res) {
       }
 
       // Node létrehozása
-      if (center) {
+      if (center && newRoom.category === "room") {
         //const projected = await getNearestProjection(center[0], newRoom.floorId, prisma);
         const finalCoord = center;
         await prisma.node.create({
@@ -357,6 +364,13 @@ async function getRooms (req, res) {
   
       // Node törlése, ha van ilyen nevű node
       const nodeName = `${room.name}_node`;
+      if (room.category !== "room") {
+        await prisma.room.delete({ where: { id: roomId } });
+        return res.status(200).json({
+          success: true,
+          message: "Terület sikeresen törölve!",
+        });
+      }
       const node = await prisma.node.findFirst({
         where: {
           name: nodeName,
@@ -405,6 +419,7 @@ async function getRooms (req, res) {
         name: newRoomName,
         type: room.type,
         floorId: room.floorId,
+        category: room.category || "room",
         coordinates: room.coordinates, // 👈 alakzat 1:1 másolva
       },
     });
@@ -418,7 +433,7 @@ async function getRooms (req, res) {
       },
     });
 
-    if (originalNode) {
+    if (room.category === "room" && originalNode) {
       await prisma.node.create({
         data: {
           name: `${newRoomName}_node`,
