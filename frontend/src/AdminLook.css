@@ -269,3 +269,14 @@
   background: #f0f0f0;
 }
 
+.info-box-copy{
+  background-color: lightgray;
+  border: none;
+  padding: 8px;
+  font-weight: 600;
+}
+
+.info-box-copy:hover{
+  background-color: gray;
+}
+

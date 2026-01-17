@@ -35,6 +35,7 @@ const MapComponent = () => {
   const lastRouteNamesRef = useRef({ start: "", end: "" });
   const routeEndpointsRef = useRef({ start: null, end: null });
   const isStairsNode = (n) => ((n?.type || n?.nodeType || "").toLowerCase() === "stairs");
+  const isExitNode = (n) => ((n?.type || n?.nodeType || "").toLowerCase() === "exit");
 
   const [showTip, setShowTip] = useState(true);
 
@@ -132,6 +133,13 @@ const MapComponent = () => {
     if (k === "stairs") return "transition";     // ikon/stílus nálad már kész
     if (k === "exit")   return "transition";
     return "indoor";
+  };
+
+  const stepTitleForNode = (n) => {
+    const t = (n?.type || n?.nodeType || "").toLowerCase();
+    if (t === "exit")   return "Lépj be/ki az épületbe";
+    if (t === "stairs") return "Haladj a lépcsőn";
+    return n?.name || t.toUpperCase();
   };
 
   // MapComponent.js – a komponensen belül
@@ -348,7 +356,7 @@ const MapComponent = () => {
             if (currentZoom <= 15) {
               opacity = 0;
             } else if (currentZoom >= 19) {
-              opacity = 1;
+              opacity = 0.7;
             } else {
               // 15 → 0   | 19 → 1
               opacity = (currentZoom - 15) / (19 - 15);
@@ -466,6 +474,30 @@ const MapComponent = () => {
     return out;
   };
 
+  const collapseExitRuns = (nodes = []) => {
+    const out = [];
+    let i = 0;
+
+    while (i < nodes.length) {
+      if (!isExitNode(nodes[i])) {
+        out.push(nodes[i]);
+        i++;
+        continue;
+      }
+
+      // exit-futam eleje
+      let j = i;
+      while (j < nodes.length && isExitNode(nodes[j])) j++;
+
+      // 🔑 több egymást követő exit → csak EGY marad
+      out.push(nodes[i]); // az első exit elég UX-re
+
+      i = j;
+    }
+
+    return out;
+  };
+
   const buildStepsFromNodes = (pathNodes = [], startLabel, endLabel) => {
     const steps = [];
 
@@ -491,7 +523,11 @@ const MapComponent = () => {
       steps.push({ id: "start", title: startLabel || "Kezdőpont", kind: "transition" });
     }
 
-    const reducedNodes = collapseStairRuns(pathNodes);
+    const reducedNodes =
+      collapseExitRuns(
+        collapseStairRuns(pathNodes)
+      );
+
 
     // Közbenső node-ok (csak stairs/exit, ahogy eddig)
     reducedNodes.forEach((n, i) => {
@@ -499,7 +535,7 @@ const MapComponent = () => {
       if (!BUILD_STEP_WHITELIST.has(t)) return;
       steps.push({
         id: n.id ?? `n${i}`,
-        title: n.name || t.toUpperCase(),
+        title: stepTitleForNode(n), //n.name || t.toUpperCase(),
         kind: nodeKindToStepKind(t),
         type: "node",
         node: n,
@@ -664,18 +700,19 @@ const MapComponent = () => {
   
       if (category === "floor" && floorNumber === currentFloor) {
         return {
-          fillColor: "lightgray",
+          fillColor: "gray",
           strokeColor: "lightgray",
-          strokeWeight: 0.2,
+          strokeWeight: 1,
           visible: true,
         };
       }
   
       if (category === "room" && roomFloor === currentFloor) {
         return {
-          fillColor: "gray",
+          fillColor: "orange",
           strokeColor: "black",
-          strokeWeight: 0,
+          fillOpacity: 0.6,
+          strokeWeight: 0.7,
           visible: true,
         };
       }

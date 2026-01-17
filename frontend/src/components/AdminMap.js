@@ -134,6 +134,7 @@ const AdminMap = () => {
   const nodeMarkersRef = useRef(new Map());    // nodeId -> google.maps.Marker
   const edgePolylinesRef = useRef(new Map());  // edgeId -> { polyline, fromNodeId, toNodeId }
   const nodeToEdgesRef = useRef(new Map());    // nodeId -> Set(edgeId)
+  const edgeStartNodeRef = useRef(null);
 
   // végtelen kör frissítés elkerülésére
   const isSyncingRef = useRef(false);
@@ -796,6 +797,14 @@ const AdminMap = () => {
 
           marker.addListener("click", () => {
 
+            edgeStartNodeRef.current = {
+              id,
+              name,
+              position: marker.getPosition(),
+            };
+
+            console.log("Edge kezdő node:", id);
+
             activeEdges.forEach((e) => e.setMap(null));
             activeEdges = [];
         
@@ -828,6 +837,58 @@ const AdminMap = () => {
             selectedFeature.current = nodeData;
             console.log("Kiválasztott node:", nodeData);
           });
+          
+          marker.addListener("rightclick", async () => {
+            const from = edgeStartNodeRef.current;
+
+            // nincs kezdő node vagy ugyanarra kattintottál
+            if (!from || from.id === id) return;
+
+            const ok = window.confirm(
+              `Edge létrehozása a ${from.name} és ${name} node között?`
+            );
+            if (!ok) return;
+
+            const toPos = marker.getPosition();
+
+            // 🔥 POLYLINE AZONNAL
+            const polyline = new window.google.maps.Polyline({
+              path: [from.position, toPos],
+              strokeColor: "orange",
+              strokeWeight: 3,
+              map: map.current,
+            });
+
+            // 💾 API MENTÉS
+            const payload = {
+              fromNodeId: from.id,
+              toNodeId: id,
+              type: "hallway", // ide később jöhet választás
+              waypoints: [
+                [from.position.lng(), from.position.lat()],
+                [toPos.lng(), toPos.lat()],
+              ],
+            };
+
+            try {
+              const res = await fetch(`${API_BASE_URL}/edges`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+
+              if (!res.ok) throw new Error();
+
+              alert("✅ Edge létrehozva");
+              edgeStartNodeRef.current = null;
+              refreshMap();
+            } catch {
+              alert("❌ Edge mentése sikertelen");
+              polyline.setMap(null);
+            }
+          });
+
+
         });
 
         resnapAllEdges();

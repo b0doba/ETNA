@@ -173,9 +173,10 @@ async function getRooms (req, res) {
               floorId: existingRoom.floorId,
             },
           });
-
-          const projected = await getNearestProjection(center[0], existingRoom.floorId, existingRoom.buildingId, prisma);
-          const finalCoord = projected ? [projected] : center;
+          //ieglenes kikapcsolás
+          // const projected = await getNearestProjection(center[0], existingRoom.floorId, existingRoom.buildingId, prisma);
+          // const finalCoord = projected ? [projected] : center;
+          const finalCoord = center;
   
           if (existingNode) {
             await prisma.node.update({
@@ -186,71 +187,71 @@ async function getRooms (req, res) {
             });
   
             console.log(`📍 Node "${nodeName}" pozíció frissítve.`);
-            if (projected) {
-              const hallwayEdges = await prisma.edge.findMany({
-                where: { type: "hallway" },
-                include: {
-                  fromNode: true,
-                  toNode: true,
-                },
-              });
+            // if (projected) {
+            //   const hallwayEdges = await prisma.edge.findMany({
+            //     where: { type: "hallway" },
+            //     include: {
+            //       fromNode: true,
+            //       toNode: true,
+            //     },
+            //   });
     
-              for (const edge of hallwayEdges) {
-                const waypoints = edge.waypoints;
-                if (!waypoints || waypoints.length < 2) {
-                  console.warn(`⚠️ Edge ${edge.id} kihagyva, mert nem érvényes (waypoints < 2)`);
-                  continue;
-                }
-                const isOnWaypoint = waypoints.some(
-                  wp => getDistance(wp, projected) < 0.2
-                );
-                if (isOnWaypoint) {
-                  console.log(`🔁 A node projectionja már egy waypointon ül (edgeId=${edge.id}), split kihagyva.`);
-                  continue;
-                }
+            //   for (const edge of hallwayEdges) {
+            //     const waypoints = edge.waypoints;
+            //     if (!waypoints || waypoints.length < 2) {
+            //       console.warn(`⚠️ Edge ${edge.id} kihagyva, mert nem érvényes (waypoints < 2)`);
+            //       continue;
+            //     }
+            //     const isOnWaypoint = waypoints.some(
+            //       wp => getDistance(wp, projected) < 0.2
+            //     );
+            //     if (isOnWaypoint) {
+            //       console.log(`🔁 A node projectionja már egy waypointon ül (edgeId=${edge.id}), split kihagyva.`);
+            //       continue;
+            //     }
 
-                for (let i = 0; i < waypoints.length - 1; i++) {
-                  const a = waypoints[i];
-                  const b = waypoints[i + 1];
-                  const [px, py] = projected;
+            //     for (let i = 0; i < waypoints.length - 1; i++) {
+            //       const a = waypoints[i];
+            //       const b = waypoints[i + 1];
+            //       const [px, py] = projected;
     
-                  const distAB = Math.hypot(b[0] - a[0], b[1] - a[1]);
-                  const distToLine = Math.abs(
-                    (b[0] - a[0]) * (a[1] - py) - (a[0] - px) * (b[1] - a[1])
-                  ) / distAB;
+            //       const distAB = Math.hypot(b[0] - a[0], b[1] - a[1]);
+            //       const distToLine = Math.abs(
+            //         (b[0] - a[0]) * (a[1] - py) - (a[0] - px) * (b[1] - a[1])
+            //       ) / distAB;
     
-                  if (distToLine < 0.0001) {
-                    const alreadyExists = await prisma.edge.findFirst({
-                      where: {
-                        type: "hallway",
-                        OR: [
-                          {
-                            fromNodeId: existingNode.id,
-                            toNodeId: edge.fromNodeId,
-                          },
-                          {
-                            fromNodeId: edge.fromNodeId,
-                            toNodeId: existingNode.id,
-                          },
-                        ],
-                      },
-                    });
+            //       if (distToLine < 0.0001) {
+            //         const alreadyExists = await prisma.edge.findFirst({
+            //           where: {
+            //             type: "hallway",
+            //             OR: [
+            //               {
+            //                 fromNodeId: existingNode.id,
+            //                 toNodeId: edge.fromNodeId,
+            //               },
+            //               {
+            //                 fromNodeId: edge.fromNodeId,
+            //                 toNodeId: existingNode.id,
+            //               },
+            //             ],
+            //           },
+            //         });
             
-                    if (!alreadyExists) {
-                      await splitEdgeLogic({
-                        edgeId: edge.id,
-                        nodeId: existingNode.id,
-                        projectionPoint: projected,
-                      });
-                    } else {
-                      console.log(`⛔ Már létezik hallway edge a node-hoz (${existingNode.id}), kihagyva a splitet.`);
-                    }                    
-                      break;
-                  }
-                  console.log(`📐 distToLine számítás: ${distToLine} (edgeId=${edge.id})`);
-                }
-              }
-            }
+            //         if (!alreadyExists) {
+            //           await splitEdgeLogic({
+            //             edgeId: edge.id,
+            //             nodeId: existingNode.id,
+            //             projectionPoint: projected,
+            //           });
+            //         } else {
+            //           console.log(`⛔ Már létezik hallway edge a node-hoz (${existingNode.id}), kihagyva a splitet.`);
+            //         }                    
+            //           break;
+            //       }
+            //       console.log(`📐 distToLine számítás: ${distToLine} (edgeId=${edge.id})`);
+            //     }
+            //   }
+            // }
           }
         }
       }
