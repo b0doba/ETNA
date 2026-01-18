@@ -459,50 +459,65 @@ const MapComponent = () => {
   const collapseStairRuns = (nodes = []) => {
     const out = [];
     let i = 0;
+
     while (i < nodes.length) {
       if (!isStairsNode(nodes[i])) {
         out.push(nodes[i]);
         i++;
         continue;
       }
-      // stairs futam vége
-      let j = i;
-      while (j < nodes.length && isStairsNode(nodes[j])) j++;
-      const len = j - i;
-      if (len >= 3) {
-        out.push(nodes[i]);       // alsó (útvonal-sorrend eleje)
-        out.push(nodes[j - 1]);   // felső (útvonal-sorrend vége)
-      } else {
-        for (let k = i; k < j; k++) out.push(nodes[k]);
-      }
-      i = j;
+
+      // egy teljes lépcső-futam → EGY lépés
+      out.push(nodes[i]);
+
+      while (i < nodes.length && isStairsNode(nodes[i])) i++;
     }
+
     return out;
   };
+
 
   const collapseExitRuns = (nodes = []) => {
     const out = [];
     let i = 0;
 
     while (i < nodes.length) {
-      if (!isExitNode(nodes[i])) {
-        out.push(nodes[i]);
+      const n = nodes[i];
+
+      if (!isExitNode(n)) {
+        out.push(n);
         i++;
         continue;
       }
 
-      // exit-futam eleje
-      let j = i;
-      while (j < nodes.length && isExitNode(nodes[j])) j++;
+      // 🔑 exit-pár feldolgozása
+      const first = nodes[i];
+      const second = nodes[i + 1];
 
-      // 🔑 több egymást követő exit → csak EGY marad
-      out.push(nodes[i]); // az első exit elég UX-re
+      if (second && isExitNode(second)) {
+        // preferált: amelyikhez van buildingId (beltéri)
+        const preferred =
+          first.buildingId != null
+            ? first
+            : second.buildingId != null
+            ? second
+            : first;
 
-      i = j;
+        out.push(preferred);
+        i += 2; // ⬅️ KETTŐT lépünk előre
+      } else {
+        // magányos exit (edge case)
+        out.push(first);
+        i++;
+      }
     }
 
     return out;
   };
+
+
+
+
 
   const buildStepsFromNodes = (pathNodes = [], startLabel, endLabel) => {
     const steps = [];
